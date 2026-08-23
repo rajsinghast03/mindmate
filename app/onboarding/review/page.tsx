@@ -188,7 +188,7 @@ export default function ProfileReviewPage() {
             className="w-full flex items-center justify-center gap-2.5 rounded-full bg-accent-500 px-8 py-4 text-base font-medium text-white shadow-soft transition-all hover:bg-accent-600 hover:shadow-lifted active:scale-95"
           >
             <Sparkles className="h-4 w-4 text-accent-200" />
-            <span>Show me my Mindmates</span>
+            <span>Explore Resonant Minds</span>
           </button>
         </div>
       </form>

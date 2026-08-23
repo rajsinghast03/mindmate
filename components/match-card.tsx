@@ -97,7 +97,7 @@ export function MatchCard({ match, onConnect, onPass, isConnected = false }: Mat
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-medium text-ink-600 hover:bg-paper-200/80 hover:text-ink-950 transition-all active:scale-95"
             >
               <X className="h-4 w-4 text-ink-400" />
-              <span>Not for me</span>
+              <span>Skip for now</span>
             </button>
 
             <button
@@ -105,7 +105,7 @@ export function MatchCard({ match, onConnect, onPass, isConnected = false }: Mat
               className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-600 hover:shadow-soft active:scale-95"
             >
               <Check className="h-4 w-4" />
-              <span>I&apos;d like to connect</span>
+              <span>Start a conversation</span>
             </button>
           </>
         )}

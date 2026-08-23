@@ -19,9 +19,9 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: 'Mindmate — Matched by Mind, Never by Looks | AI-Driven Connection',
+  title: 'Mindmate — Find People Who Think Like You | Co-founders, Collaborators & Intellectual Friends',
   description:
-    'Stop getting judged by photos. Mindmate matches people based on their written thoughts, curiosities, and ideas using AI—with zero appearance bias, photos, or shallow swipe feeds.',
+    'Your next co-founder, creative collaborator, intellectual friend, or hobby partner. Mindmate matches people through written ideas and AI text resonance—with zero photo bias or superficial swipe feeds.',
 };
 
 export default function RootLayout({

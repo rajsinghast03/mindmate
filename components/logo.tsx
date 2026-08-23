@@ -32,50 +32,26 @@ export function LogoMark({
       className={`relative flex items-center justify-center rounded-2xl bg-ink-950 text-paper-50 shadow-soft transition-all duration-300 group-hover:scale-105 group-hover:shadow-card ${box} ${className}`}
     >
       <svg
-        width={icon * 0.72}
-        height={icon * 0.72}
-        viewBox="0 0 40 40"
+        width={icon * 0.75}
+        height={icon * 0.75}
+        viewBox="0 0 36 36"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="shrink-0"
       >
-        {/* Left Cerebral / Synapse Arch */}
+        {/* Aesthetic Editorial Serif 'M' Lettermark */}
         <path
-          d="M13 10C8.5 13 6 17 6 22C6 27.5 10.5 31 16 31C18.5 31 20.8 29.8 22.2 27.8"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
+          d="M8.5 27V9H11.2L18 20.8L24.8 9H27.5V27H24.5V14.2L18.8 24.2H17.2L11.5 14.2V27H8.5Z"
+          fill="currentColor"
         />
 
-        {/* Right Cerebral / Synapse Arch */}
-        <path
-          d="M27 30C31.5 27 34 23 34 18C34 12.5 29.5 9 24 9C21.5 9 19.2 10.2 17.8 12.2"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-
-        {/* Neural Synapse Connection Arc */}
-        <path
-          d="M14 20C16 16 24 16 26 20"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeDasharray="2 2"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-
-        {/* Central Luminous Synaptic Spark (Terracotta / Coral Meeting Node) */}
+        {/* Delicate Terracotta Curiosity Spark / Period */}
         <circle
-          cx="20"
-          cy="20"
-          r="3.5"
+          cx="28.5"
+          cy="25"
+          r="2.2"
           className="fill-accent-500 animate-pulse"
         />
-
-        {/* Subtle Satellite Neural Pulses */}
-        <circle cx="12" cy="15" r="1.25" fill="currentColor" opacity="0.5" />
-        <circle cx="28" cy="25" r="1.25" fill="currentColor" opacity="0.5" />
       </svg>
     </div>
   );
