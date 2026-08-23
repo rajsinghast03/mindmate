@@ -9,40 +9,8 @@ import {
   ShieldCheck,
   Lock,
   EyeOff,
-  Rocket,
-  Palette,
-  BookOpen,
-  Compass,
   Users,
-  MessageSquare,
 } from 'lucide-react';
-
-const CONNECTION_MODES = [
-  {
-    icon: Rocket,
-    title: 'Your Next Co-Founder',
-    desc: 'Find builders, engineers, and tinkerers who obsess over the same technical and product problems.',
-    tag: 'Builders & Tech',
-  },
-  {
-    icon: Palette,
-    title: 'Creative Collaborator',
-    desc: 'Connect with writers, filmmakers, sound artists, and designers who share your aesthetic philosophy.',
-    tag: 'Arts & Design',
-  },
-  {
-    icon: BookOpen,
-    title: 'Intellectual Friend',
-    desc: 'Meet curious minds to dissect philosophy, cognitive science, history, and books over unhurried filter coffee.',
-    tag: 'Ideas & Books',
-  },
-  {
-    icon: Compass,
-    title: 'Hobby & Craft Partner',
-    desc: 'Discover peers into amateur astronomy, urban exploration, woodworking, ecology, and game design.',
-    tag: 'Crafts & Exploration',
-  },
-];
 
 const HOW_IT_WORKS = [
   {
@@ -136,82 +104,36 @@ export default function LandingPage() {
         id="find-minds"
         className="w-full bg-paper-50 py-16 px-4 sm:px-6 border-y border-paper-300"
       >
-        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-
-          {/* Left Column: Who You Can Meet */}
-          <div>
-            <div className="mb-8">
-              <div className="inline-block rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700 mb-3">
-                No Forced Categories
-              </div>
-              <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
-                Find people who think like you
-              </h2>
-              <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-md">
-                We don&rsquo;t put you into rigid boxes. Great conversations naturally become collaborations, friendships, or creative projects.
-              </p>
+        <div className="mx-auto max-w-3xl">
+          <div className="text-center mb-12">
+            <div className="inline-block rounded-full bg-ink-950 px-3 py-1 text-xs font-semibold text-paper-50 mb-3">
+              3 Simple Steps
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {CONNECTION_MODES.map((mode, idx) => {
-                const Icon = mode.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-2xl border border-paper-300 bg-paper-100/60 p-5 shadow-soft transition-all hover:border-accent-500/50 hover:bg-paper-50 hover:shadow-card"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-paper-200 shadow-sm">
-                        <Icon className="h-4.5 w-4.5 h-5 w-5 text-accent-600" />
-                      </div>
-                      <span className="text-[10px] font-mono font-medium text-ink-500 bg-paper-200/80 px-2 py-0.5 rounded">
-                        {mode.tag}
-                      </span>
-                    </div>
-                    <h3 className="font-serif text-base font-medium text-ink-950 mb-1">
-                      {mode.title}
-                    </h3>
-                    <p className="text-xs text-ink-600 leading-relaxed">
-                      {mode.desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+            <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
+              How Mindmate works
+            </h2>
+            <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-md mx-auto">
+              From written thoughts to meaningful connections in three calm steps.
+            </p>
           </div>
 
-          {/* Right Column: How It Works */}
-          <div>
-            <div className="mb-8">
-              <div className="inline-block rounded-full bg-ink-950 px-3 py-1 text-xs font-semibold text-paper-50 mb-3">
-                3 Simple Steps
-              </div>
-              <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
-                How Mindmate works
-              </h2>
-              <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-md">
-                From written thoughts to meaningful connections in three calm steps.
-              </p>
-            </div>
-
-            <ol className="space-y-6">
-              {HOW_IT_WORKS.map((item) => (
-                <li key={item.step} className="flex items-start gap-5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-base">
-                    {item.step}
-                  </div>
-                  <div className="pt-1">
-                    <h3 className="font-serif text-lg font-medium text-ink-950 mb-1">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-ink-600 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <ol className="space-y-6">
+            {HOW_IT_WORKS.map((item) => (
+              <li key={item.step} className="flex items-start gap-5 rounded-2xl border border-paper-300 bg-paper-100/60 p-6 shadow-soft">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-base">
+                  {item.step}
+                </div>
+                <div className="pt-1">
+                  <h3 className="font-serif text-lg font-medium text-ink-950 mb-1">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-ink-600 leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
