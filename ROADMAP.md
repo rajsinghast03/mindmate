@@ -25,45 +25,44 @@ graph TD
 
 ---
 
-## 📌 Phase 1: Working Interactive Prototype (Status: Ready to Build)
+## 📌 Phase 1: Working Interactive Prototype (Status: Completed)
 **Goal:** Deliver a fully interactive, mobile-responsive client application with local state & seeded profiles to experience the full Mindmate user journey end-to-end.
 
 ### Tasks:
-- [ ] **1.1 Next.js 15 App Scaffold**
+- [x] **1.1 Next.js 15 App Scaffold**
   - Next.js with TypeScript, Tailwind CSS, Lucide icons, and Tailwind Typography.
-  - Custom font loading (e.g. *Newsreader* / *Playfair Display* for serif typography + *Geist* / *Inter* for sans).
-  - Setup custom color tokens in `tailwind.config.ts` (warm paper `#FAF8F5`, dark ink `#18181B`, coral `#E05A47`, sage `#E2E8E2`).
-- [ ] **1.2 Shared Component Library**
-  - Navigation bar with minimalist branding and calm status indicators.
-  - Editorial button styles (primary, secondary, subtle).
-  - Text inputs, text areas with live word/character counters.
-  - Dialog / Modal components with smooth transitions.
-- [ ] **1.3 Page 1: Landing Page (`/`)**
+  - Custom font loading (*Newsreader* serif + *Inter* sans).
+  - Setup custom color tokens in `tailwind.config.ts` (warm paper `#FAF8F5`, dark ink `#18181B`, coral `#E05A47`, sage `#5C7A68`).
+- [x] **1.2 Shared Component Library**
+  - Navigation bar with minimalist branding and status indicators.
+  - Editorial button styles, textareas with live word/character counters.
+  - Modal dialogs with smooth transitions.
+- [x] **1.3 Page 1: Landing Page (`/`)**
   - Hero section: "Meet people through the questions they can't stop asking."
   - 3-step visual explanation: Prompt AI -> Paste & Review -> Meet a mind.
   - One-click copy Curiosity Profile prompt component with visual feedback.
   - Privacy promise banner: "Zero ChatGPT account access or history scraping."
-- [ ] **1.4 Page 2: Paste Profile (`/onboarding/paste`)**
-  - High-focus editor with real-time length validation (90–150 words target).
-  - "Need inspiration?" drawer with 3 diverse sample curiosity profiles.
+- [x] **1.4 Page 2: Paste Profile (`/onboarding/paste`)**
+  - High-focus editor with real-time length validation (90–130 words target).
+  - "Need inspiration?" drawer with 8 diverse sample curiosity profiles.
   - Copy prompt button always accessible.
-- [ ] **1.5 Page 3: Profile Review & Details (`/onboarding/review`)**
+- [x] **1.5 Page 3: Profile Review & Details (`/onboarding/review`)**
   - Display name (nickname or first name).
   - Age selector (strictly 18+ validation).
-  - Broad location / timezone selector (e.g., "San Francisco (PST)", "London (GMT)").
+  - Broad location / timezone selector.
   - Editable preview of the Curiosity Profile.
-  - Consent check: "I understand my raw profile is private until mutual connection."
-- [ ] **1.6 Page 4: Match Discovery (`/discover`)**
+  - Explicit privacy statement.
+- [x] **1.6 Page 4: Match Discovery (`/discover`)**
   - Calm 1–3 card view (anti-swipe, thoughtful layout).
   - Display card: Nickname, age, city/timezone, resonance summary, shared curiosity theme, suggested first question.
   - Actions: "I'd like to connect" and "Not for me / Pass".
-  - Empty state when candidates are exhausted with reassuring message ("We curate mindfully rather than flooding your queue").
-- [ ] **1.7 Page 5: Connections & Chat Preview (`/connections` & `/chat/[id]`)**
-  - Request pending list and mutual connections list.
-  - Clean private chat interface with suggested first question prominently pinned as the conversation opener.
-  - Working simulated chat in prototype mode.
-- [ ] **1.8 Seed Dataset (`data/seed-profiles.ts`)**
-  - 10+ richly crafted, authentic curiosity profiles covering diverse domains (philosophy, software craft, indie film, regenerative agriculture, astronomy, ambient music, cognitive science).
+  - Empty state when candidates are caught up.
+- [x] **1.7 Page 5: Connections & Chat (`/connections` & `/chat/[id]`)**
+  - Mutual connections list.
+  - Clean private chat interface with suggested first question prominently pinned as conversation opener.
+  - Simulated interactive response engine.
+- [x] **1.8 Seed Dataset (`data/seed-profiles.ts`)**
+  - 8 richly crafted, authentic curiosity profiles covering diverse intellectual crafts.
 
 ---
 

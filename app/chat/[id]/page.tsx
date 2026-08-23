@@ -1,0 +1,305 @@
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useMindmate } from '@/context/mindmate-context';
+import {
+  ArrowLeft,
+  Send,
+  MoreVertical,
+  ShieldAlert,
+  UserX,
+  HelpCircle,
+  Sparkles,
+  Info,
+  MapPin,
+} from 'lucide-react';
+
+export default function ChatRoomPage() {
+  const params = useParams();
+  const router = useRouter();
+  const conversationId = params?.id as string;
+
+  const {
+    conversations,
+    userProfile,
+    sendMessage,
+    unmatchConversation,
+    isLoaded,
+  } = useMindmate();
+
+  const [inputMessage, setInputMessage] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDossier, setShowDossier] = useState(false);
+  const [showUnmatchModal, setShowUnmatchModal] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const conversation = conversations.find(c => c.id === conversationId);
+
+  // Auto scroll to bottom on message updates
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation?.messages]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!conversation) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center">
+        <h2 className="font-serif text-2xl font-medium text-ink-950 mb-2">
+          Conversation not found
+        </h2>
+        <p className="text-xs text-ink-500 mb-6">
+          This conversation may have been closed or unmatched.
+        </p>
+        <Link
+          href="/connections"
+          className="inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-2.5 text-xs font-medium text-paper-50"
+        >
+          <span>Return to Conversations</span>
+        </Link>
+      </div>
+    );
+  }
+
+  const { candidateProfile, sharedQuestion, resonanceSummary, messages } = conversation;
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim()) return;
+
+    sendMessage(conversationId, inputMessage.trim());
+    setInputMessage('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(e);
+    }
+  };
+
+  const handleUnmatch = () => {
+    unmatchConversation(conversationId);
+    setShowUnmatchModal(false);
+    router.push('/connections');
+  };
+
+  return (
+    <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col border-x border-paper-300 bg-paper-50 shadow-soft">
+      {/* Top Conversation Header */}
+      <div className="flex items-center justify-between border-b border-paper-300 bg-paper-100/90 px-4 py-3.5 sm:px-6 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/connections"
+            className="rounded-full p-1.5 text-ink-600 hover:bg-paper-200 hover:text-ink-950 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-paper-200 text-ink-950 font-serif font-semibold border border-paper-300/80">
+            {candidateProfile.displayName.charAt(0)}
+          </div>
+
+          <div>
+            <div className="flex items-baseline gap-2">
+              <h2 className="font-serif text-lg font-medium text-ink-950 leading-tight">
+                {candidateProfile.displayName}
+              </h2>
+              <span className="text-xs text-ink-500 font-sans">{candidateProfile.age}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-ink-500">
+              <MapPin className="h-3 w-3 text-ink-400" />
+              <span>{candidateProfile.cityOrTimezone}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="relative flex items-center gap-2">
+          <button
+            onClick={() => setShowDossier(!showDossier)}
+            className="flex items-center gap-1 rounded-full border border-paper-300 bg-paper-50 px-3 py-1 text-xs font-medium text-ink-700 hover:bg-paper-200 transition-colors"
+          >
+            <Info className="h-3.5 w-3.5 text-accent-500" />
+            <span className="hidden sm:inline">Approved Profile</span>
+          </button>
+
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="rounded-full p-2 text-ink-600 hover:bg-paper-200 hover:text-ink-950 transition-colors"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+
+          {/* Overflow Menu */}
+          {showMenu && (
+            <div className="absolute right-0 top-10 z-50 w-48 rounded-xl border border-paper-300 bg-paper-50 py-1.5 shadow-card animate-in fade-in zoom-in-95 duration-150">
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowUnmatchModal(true);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-xs font-medium text-ink-700 hover:bg-paper-100 transition-colors text-left"
+              >
+                <UserX className="h-4 w-4 text-ink-500" />
+                <span>Unmatch</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  alert('Thank you for reporting. Our safety team will review this user.');
+                  handleUnmatch();
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-xs font-medium text-accent-600 hover:bg-accent-50 transition-colors text-left"
+              >
+                <ShieldAlert className="h-4 w-4 text-accent-500" />
+                <span>Block & Report</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Approved Profile Dossier Drawer */}
+      {showDossier && (
+        <div className="border-b border-paper-300 bg-paper-100 p-4 sm:p-6 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-ink-700">
+              {candidateProfile.displayName}&apos;s Approved Curiosity Profile
+            </span>
+            <button
+              onClick={() => setShowDossier(false)}
+              className="text-xs text-ink-500 hover:text-ink-950"
+            >
+              Close ✕
+            </button>
+          </div>
+          <p className="font-serif text-sm leading-relaxed text-ink-900 italic bg-paper-50 p-4 rounded-xl border border-paper-200">
+            &ldquo;{candidateProfile.curiosityProfile}&rdquo;
+          </p>
+        </div>
+      )}
+
+      {/* Pinned Shared Opener Question Header */}
+      <div className="border-b border-dashed border-paper-300 bg-paper-100/50 p-4 sm:px-6">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-accent-700 mb-1">
+          <HelpCircle className="h-3.5 w-3.5 text-accent-500" />
+          <span>Shared Opening Question</span>
+        </div>
+        <p className="font-serif text-base sm:text-lg font-medium text-ink-950 leading-snug">
+          &ldquo;{sharedQuestion}&rdquo;
+        </p>
+        <p className="mt-1 text-xs text-ink-500 font-sans">
+          Resonance context: {resonanceSummary}
+        </p>
+      </div>
+
+      {/* Messages Thread */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-10">
+            <div className="h-10 w-10 flex items-center justify-center rounded-full bg-accent-100 text-accent-600 mb-3">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <h4 className="font-serif text-lg font-medium text-ink-950">
+              A private conversation has begun
+            </h4>
+            <p className="text-xs text-ink-500 max-w-sm mt-1">
+              Answer the shared question above or share a thought that comes to mind.
+            </p>
+          </div>
+        ) : (
+          messages.map(msg => {
+            const isMe = msg.senderProfileId === userProfile?.id;
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}
+              >
+                <div
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                    isMe
+                      ? 'bg-ink-950 text-paper-50 rounded-br-none'
+                      : 'bg-paper-200 text-ink-950 border border-paper-300/80 rounded-bl-none font-serif text-[15px]'
+                  }`}
+                >
+                  {msg.body}
+                </div>
+                <span className="text-[10px] text-ink-400 font-mono px-1">
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input Box */}
+      <div className="border-t border-paper-300 bg-paper-100 p-3 sm:p-4">
+        <form onSubmit={handleSend} className="flex items-end gap-2">
+          <textarea
+            rows={2}
+            value={inputMessage}
+            onChange={e => setInputMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={`Message ${candidateProfile.displayName}... (Press Enter to send)`}
+            className="flex-1 rounded-2xl border border-paper-300 bg-paper-50 p-3 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20 resize-none"
+          />
+          <button
+            type="submit"
+            disabled={!inputMessage.trim()}
+            className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-all ${
+              inputMessage.trim()
+                ? 'bg-accent-500 text-white hover:bg-accent-600 shadow-soft active:scale-95'
+                : 'bg-paper-300 text-ink-400 cursor-not-allowed'
+            }`}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </form>
+      </div>
+
+      {/* Unmatch Confirmation Modal */}
+      {showUnmatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
+            <h3 className="font-serif text-xl font-medium text-ink-950 mb-2">
+              Unmatch with {candidateProfile.displayName}?
+            </h3>
+            <p className="text-xs text-ink-600 leading-relaxed mb-6">
+              This will quietly remove this conversation and return them to the discovery pool. They will not be explicitly notified.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowUnmatchModal(false)}
+                className="rounded-full px-4 py-2 text-xs font-medium text-ink-600 hover:bg-paper-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnmatch}
+                className="rounded-full bg-accent-600 px-5 py-2 text-xs font-medium text-white hover:bg-accent-700"
+              >
+                Confirm Unmatch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
