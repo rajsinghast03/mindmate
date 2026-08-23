@@ -110,7 +110,7 @@ export default function ProfileReviewPage() {
                   setDisplayName(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="e.g. Julian, Maya, Soren"
+                placeholder="e.g. Kabir, Ananya, Aarav, Meera"
                 className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
               />
               <p className="mt-1 text-xs text-ink-500">

@@ -23,7 +23,7 @@ interface LocationSelectorProps {
   error?: string | null;
 }
 
-type RegionFilter = 'All' | 'Remote / Broad' | 'Americas' | 'Europe' | 'Asia-Pacific' | 'Africa & Middle East';
+type RegionFilter = 'All' | 'India & South Asia' | 'Remote / Broad' | 'Asia-Pacific' | 'Europe' | 'Americas' | 'Africa & Middle East';
 
 export function LocationSelector({ value, onChange, error }: LocationSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -160,7 +160,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
                   }
                 }
               }}
-              placeholder="Search city, country, or timezone (e.g. Mumbai, Berlin, PST, London)..."
+              placeholder="Search city, state, or region (e.g. Bengaluru, Mumbai, Delhi, Pune, IST)..."
               className="w-full rounded-xl border border-paper-300 bg-paper-100/80 pl-10 pr-4 py-2.5 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
             />
           </div>
@@ -184,10 +184,11 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
             {(
               [
                 'All',
+                'India & South Asia',
                 'Remote / Broad',
-                'Americas',
-                'Europe',
                 'Asia-Pacific',
+                'Europe',
+                'Americas',
                 'Africa & Middle East',
               ] as RegionFilter[]
             ).map(tab => (

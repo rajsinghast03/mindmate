@@ -247,19 +247,19 @@ export default function LandingPage() {
           <div className="flex items-start justify-between gap-4 border-b border-paper-200 pb-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper-200 text-ink-950 font-serif text-xl font-semibold">
-                J
+                K
               </div>
               <div>
                 <div className="flex items-baseline gap-2">
-                  <span className="font-serif text-xl font-medium text-ink-950">Julian</span>
+                  <span className="font-serif text-xl font-medium text-ink-950">Kabir</span>
                   <span className="text-sm text-ink-500">29</span>
                 </div>
-                <span className="text-xs text-ink-500">Edinburgh, UK (GMT)</span>
+                <span className="text-xs text-ink-500">Bengaluru, Karnataka (IST, UTC+5:30)</span>
               </div>
             </div>
 
             <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700">
-              Tactile Design & Slow Living
+              Slow Software & Tactile Craft
             </span>
           </div>
 
