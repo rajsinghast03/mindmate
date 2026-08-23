@@ -3,27 +3,44 @@
 import React from 'react';
 import Link from 'next/link';
 import { PromptBox } from '@/components/prompt-box';
-import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2, Lock, MessageSquare } from 'lucide-react';
+import {
+  Brain,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  Lock,
+  XCircle,
+  EyeOff,
+  UserCheck,
+  Zap,
+} from 'lucide-react';
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col items-center justify-center">
       {/* Hero Section */}
-      <section className="relative w-full max-w-4xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 text-center">
-        {/* Subtle pill */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-paper-300 bg-paper-50 px-3.5 py-1.5 text-xs font-medium text-ink-700 shadow-sm mb-6">
-          <Sparkles className="h-3.5 w-3.5 text-accent-500" />
-          <span>A calm, curiosity-first connection platform</span>
+      <section className="relative w-full max-w-4xl px-4 pt-16 pb-16 sm:px-6 sm:pt-24 sm:pb-24 text-center">
+        {/* Anti-Lookism & AI Pill */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-paper-300 bg-paper-50 px-4 py-1.5 text-xs font-semibold text-ink-800 shadow-sm mb-6">
+          <Brain className="h-3.5 w-3.5 text-accent-500" />
+          <span>AI Text-Driven Matching • Zero Appearance Bias</span>
         </div>
 
         {/* Main Headline */}
-        <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-medium tracking-tight text-ink-950 leading-[1.15]">
-          Meet people through the questions they <span className="italic font-serif text-accent-600">can’t stop asking.</span>
+        <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-medium tracking-tight text-ink-950 leading-[1.12]">
+          Matched by mind, <br className="hidden sm:inline" />
+          <span className="italic font-serif text-accent-600">never by looks.</span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-ink-700 font-sans font-normal">
-          Not through a shallow bio, job title, or swipe feed. Mindmate introduces you through the ideas, crafts, and curiosities that actually occupy your mind.
+        {/* Dynamic AI Accent Line */}
+        <p className="mx-auto mt-5 max-w-2xl font-serif text-xl sm:text-2xl text-ink-900 font-medium leading-snug">
+          AI that connects you through the depth of your thoughts, not a 2-second photo swipe.
+        </p>
+
+        {/* Explanatory Manifesto Subtitle */}
+        <p className="mx-auto mt-4 max-w-2xl text-base sm:text-lg leading-relaxed text-ink-600 font-sans font-normal">
+          Traditional apps reduce you to a photo and a 2-line bio—where people get judged and rejected on superficial looks before anyone knows who they truly are. Mindmate uses AI to analyze the curiosities, crafts, and questions that occupy your mind, introducing you to people who resonate with your intellect.
         </p>
 
         {/* CTAs */}
@@ -32,32 +49,118 @@ export default function LandingPage() {
             href="/onboarding/paste"
             className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-full bg-ink-950 px-8 py-4 text-base font-medium text-paper-50 shadow-soft transition-all hover:bg-ink-800 hover:shadow-lifted active:scale-95"
           >
-            <span>Find someone who gets you</span>
+            <span>Match with your Mindmate</span>
             <ArrowRight className="h-4 w-4" />
           </Link>
           <a
-            href="#how-it-works"
+            href="#why-text-matching"
             className="flex items-center justify-center w-full sm:w-auto rounded-full px-6 py-4 text-sm font-medium text-ink-700 hover:text-ink-950 transition-colors"
           >
-            How it works
+            Why text matching wins &darr;
           </a>
         </div>
 
-        {/* Privacy reassurance pill */}
-        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-ink-500">
-          <ShieldCheck className="h-4 w-4 text-sage-500" />
-          <span>We never connect to ChatGPT or read your chat history. You are always in control.</span>
+        {/* Key Reassurance Badges */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-ink-500">
+          <div className="flex items-center gap-1.5">
+            <EyeOff className="h-4 w-4 text-accent-500" />
+            <span>No photos to judge</span>
+          </div>
+          <span className="hidden sm:inline">•</span>
+          <div className="flex items-center gap-1.5">
+            <Zap className="h-4 w-4 text-sage-500" />
+            <span>AI semantic resonance</span>
+          </div>
+          <span className="hidden sm:inline">•</span>
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="h-4 w-4 text-sage-500" />
+            <span>100% private until mutual opt-in</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Section: Looks-First vs. Mind-First */}
+      <section id="why-text-matching" className="w-full bg-paper-200/60 py-16 px-4 sm:px-6 border-y border-paper-300">
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
+              Why photo swiping fails thoughtful people
+            </h2>
+            <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-xl mx-auto">
+              Appearance-based platforms create high rejection and shallow matches. Mindmate replaces visual snap judgments with AI-powered intellectual alignment.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* The Old Way */}
+            <div className="rounded-3xl border border-red-200 bg-paper-50 p-6 sm:p-8 shadow-soft space-y-4">
+              <div className="flex items-center gap-2 text-red-700 font-serif font-medium text-lg border-b border-paper-200 pb-3">
+                <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+                <span>The Superficial Photo Swipe</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-ink-600">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-red-500 font-bold mt-0.5">&times;</span>
+                  <span><strong>Appearance judgment:</strong> People get rejected in under 2 seconds based solely on angles and lighting.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-red-500 font-bold mt-0.5">&times;</span>
+                  <span><strong>Shallow 100-character bios:</strong> Job titles and one-liners fail to communicate what you actually care about.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-red-500 font-bold mt-0.5">&times;</span>
+                  <span><strong>Endless dopamine loop:</strong> Gamified swipe decks designed to keep you scrolling rather than connecting.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-red-500 font-bold mt-0.5">&times;</span>
+                  <span><strong>Awkward &quot;Hey&quot; openers:</strong> No shared foundation to begin meaningful conversations.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* The Mindmate Way */}
+            <div className="rounded-3xl border border-accent-300 bg-paper-50 p-6 sm:p-8 shadow-card space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-accent-500 text-white font-mono text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                The Mindmate AI Way
+              </div>
+              <div className="flex items-center gap-2 text-ink-950 font-serif font-medium text-lg border-b border-paper-200 pb-3">
+                <CheckCircle2 className="h-5 w-5 text-accent-500 shrink-0" />
+                <span>Pure Mind Matching</span>
+              </div>
+              <ul className="space-y-3 text-xs sm:text-sm text-ink-800">
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 text-accent-500 shrink-0 mt-0.5" />
+                  <span><strong>Zero appearance bias:</strong> No photos to browse or judge. Matches are based 100% on written curiosities.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 text-accent-500 shrink-0 mt-0.5" />
+                  <span><strong>AI semantic intelligence:</strong> Evaluates ongoing crafts, questions, and ideas to find true cognitive resonance.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 text-accent-500 shrink-0 mt-0.5" />
+                  <span><strong>1–3 curated introductions:</strong> High-signal, calm introductions with explicit explanations of *why* you connect.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="h-4 w-4 text-accent-500 shrink-0 mt-0.5" />
+                  <span><strong>Shared opening question:</strong> Private chat unlocks with a tailored question that bridges both of your minds.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Copy Prompt Interactive Box Section */}
-      <section className="w-full max-w-3xl px-4 pb-20 sm:px-6">
+      <section className="w-full max-w-3xl px-4 py-20 sm:px-6">
         <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700 mb-2">
+            <span>Step 1: Create your thought profile</span>
+          </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-medium text-ink-950">
-            Step 1: Get your Curiosity Profile
+            Generate your Curiosity Profile with AI
           </h2>
           <p className="text-sm text-ink-600 mt-1 max-w-lg mx-auto">
-            Copy this prompt into ChatGPT, Claude, or write it directly. It extracts what makes your mind tick without sharing any sensitive personal data.
+            Copy this privacy-safe prompt into ChatGPT, Claude, or write it directly. It extracts what makes your mind tick with zero identifying personal data.
           </p>
         </div>
 
@@ -74,34 +177,34 @@ export default function LandingPage() {
       </section>
 
       {/* How it Works 3 Steps */}
-      <section id="how-it-works" className="w-full bg-paper-200/60 py-20 px-4 sm:px-6 border-y border-paper-300">
+      <section id="how-it-works" className="w-full bg-paper-200/40 py-20 px-4 sm:px-6 border-t border-paper-300">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-14">
             <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
-              Connection designed for thoughtful minds
+              How Mindmate connects two minds
             </h2>
             <p className="text-ink-600 text-base mt-2 max-w-xl mx-auto">
-              No infinite feeds. No forced labels like &quot;dating&quot; vs &quot;networking&quot;. Just honest human resonance.
+              From written thoughts to meaningful dialogues in three calm steps.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <div className="rounded-2xl bg-paper-50 p-7 border border-paper-300 shadow-soft">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-paper-200 text-ink-950 font-serif font-bold text-lg mb-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-lg mb-5">
                 1
               </div>
               <h3 className="font-serif text-xl font-medium text-ink-950 mb-2">
                 Ask AI for your Curiosity Profile
               </h3>
               <p className="text-sm text-ink-600 leading-relaxed">
-                Copy our prompt into ChatGPT or write your own. In 100 words, it captures the questions, crafts, and themes you keep returning to.
+                Copy our prompt into ChatGPT or write your own. In ~100 words, it captures the questions, crafts, and themes you keep returning to.
               </p>
             </div>
 
             {/* Step 2 */}
             <div className="rounded-2xl bg-paper-50 p-7 border border-paper-300 shadow-soft">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-paper-200 text-ink-950 font-serif font-bold text-lg mb-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-lg mb-5">
                 2
               </div>
               <h3 className="font-serif text-xl font-medium text-ink-950 mb-2">
@@ -114,11 +217,11 @@ export default function LandingPage() {
 
             {/* Step 3 */}
             <div className="rounded-2xl bg-paper-50 p-7 border border-paper-300 shadow-soft">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-paper-200 text-ink-950 font-serif font-bold text-lg mb-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-lg mb-5">
                 3
               </div>
               <h3 className="font-serif text-xl font-medium text-ink-950 mb-2">
-                Meet through Shared Questions
+                AI Semantic Matching
               </h3>
               <p className="text-sm text-ink-600 leading-relaxed">
                 Receive 1–3 curated introductions with an explanation of *why* you connect. Once both people accept, chat opens with a tailored opening question.
@@ -132,10 +235,10 @@ export default function LandingPage() {
       <section className="w-full max-w-4xl py-20 px-4 sm:px-6">
         <div className="text-center mb-10">
           <div className="inline-block rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700 mb-3">
-            What an introduction looks like
+            Real Resonance Over Superficial Swiping
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-medium text-ink-950">
-            No fake scores. Real human reasons.
+            Every match comes with a reason
           </h2>
         </div>
 
@@ -151,7 +254,7 @@ export default function LandingPage() {
                   <span className="font-serif text-xl font-medium text-ink-950">Julian</span>
                   <span className="text-sm text-ink-500">29</span>
                 </div>
-                <span className="text-xs text-ink-500">Edinburgh (GMT)</span>
+                <span className="text-xs text-ink-500">Edinburgh, UK (GMT)</span>
               </div>
             </div>
 
@@ -193,16 +296,16 @@ export default function LandingPage() {
       <section className="w-full bg-paper-50 py-20 px-4 sm:px-6 border-t border-paper-300">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-serif text-3xl font-medium text-ink-950 text-center mb-12">
-            Our Commitments to You
+            Built for Authentic Intellectual Connection
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="flex items-start gap-3.5 p-4">
-              <CheckCircle2 className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
+              <EyeOff className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">No Intent Labels</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">Zero Photo Bias</h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  We don’t force you into &quot;dating&quot;, &quot;networking&quot;, or &quot;friendship&quot; buckets. Connections evolve naturally.
+                  Never be judged or rejected by a snapshot. Connect through what you think, craft, and explore.
                 </p>
               </div>
             </div>
@@ -212,7 +315,7 @@ export default function LandingPage() {
               <div>
                 <h4 className="font-serif text-lg font-medium text-ink-950">Mutual Consent Only</h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  No one can send you a message or view your profile text unless you have both explicitly opted in.
+                  No one can message you or view your approved profile until you have both explicitly chosen to connect.
                 </p>
               </div>
             </div>
@@ -222,17 +325,17 @@ export default function LandingPage() {
               <div>
                 <h4 className="font-serif text-lg font-medium text-ink-950">Zero Scraping</h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  We never access your ChatGPT account or raw chat logs. You paste only what you choose to share.
+                  We never access your ChatGPT account or raw chat logs. You paste and approve only what you choose to share.
                 </p>
               </div>
             </div>
 
             <div className="flex items-start gap-3.5 p-4">
-              <MessageSquare className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
+              <UserCheck className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">Fewer, Better Matches</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">No Intent Labels</h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  We show 1–3 high-resonance introductions at a time, eliminating endless mindless swiping.
+                  We don’t force you into &quot;dating&quot;, &quot;networking&quot;, or &quot;friendship&quot; buckets. Connections evolve naturally.
                 </p>
               </div>
             </div>

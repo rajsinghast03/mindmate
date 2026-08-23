@@ -19,9 +19,9 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: 'Mindmate — Meet people through the questions they can’t stop asking',
+  title: 'Mindmate — Matched by Mind, Never by Looks | AI-Driven Connection',
   description:
-    'An intellectual, curiosity-first connection platform where matches are made through ideas, ongoing questions, and deep curiosities—not shallow bios, photos, or swipe feeds.',
+    'Stop getting judged by photos. Mindmate matches people based on their written thoughts, curiosities, and ideas using AI—with zero appearance bias, photos, or shallow swipe feeds.',
 };
 
 export default function RootLayout({

@@ -29,43 +29,53 @@ export function LogoMark({
 
   return (
     <div
-      className={`relative flex items-center justify-center rounded-2xl bg-ink-950 text-paper-50 shadow-sm transition-transform group-hover:scale-105 ${box} ${className}`}
+      className={`relative flex items-center justify-center rounded-2xl bg-ink-950 text-paper-50 shadow-soft transition-all duration-300 group-hover:scale-105 group-hover:shadow-card ${box} ${className}`}
     >
       <svg
-        width={icon * 0.75}
-        height={icon * 0.75}
-        viewBox="0 0 36 36"
+        width={icon * 0.72}
+        height={icon * 0.72}
+        viewBox="0 0 40 40"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="shrink-0"
       >
-        {/* First Thought Orbit (Left Node) */}
+        {/* Left Cerebral / Synapse Arch */}
         <path
-          d="M13.5 9C8.80558 9 5 13.0294 5 18C5 22.9706 8.80558 27 13.5 27C17.2 27 20.3 24.3 21.6 20.5"
+          d="M13 10C8.5 13 6 17 6 22C6 27.5 10.5 31 16 31C18.5 31 20.8 29.8 22.2 27.8"
           stroke="currentColor"
-          strokeWidth="2.25"
+          strokeWidth="2.5"
           strokeLinecap="round"
         />
 
-        {/* Second Thought Orbit (Right Node) */}
+        {/* Right Cerebral / Synapse Arch */}
         <path
-          d="M22.5 27C27.1944 27 31 22.9706 31 18C31 13.0294 27.1944 9 22.5 9C18.8 9 15.7 11.7 14.4 15.5"
+          d="M27 30C31.5 27 34 23 34 18C34 12.5 29.5 9 24 9C21.5 9 19.2 10.2 17.8 12.2"
           stroke="currentColor"
-          strokeWidth="2.25"
+          strokeWidth="2.5"
           strokeLinecap="round"
         />
 
-        {/* Central Resonance Spark (Terracotta / Coral meeting node) */}
+        {/* Neural Synapse Connection Arc */}
+        <path
+          d="M14 20C16 16 24 16 26 20"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeDasharray="2 2"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+
+        {/* Central Luminous Synaptic Spark (Terracotta / Coral Meeting Node) */}
         <circle
-          cx="18"
-          cy="18"
-          r="2.75"
+          cx="20"
+          cy="20"
+          r="3.5"
           className="fill-accent-500 animate-pulse"
         />
 
-        {/* Subtle upper and lower resonance bridge accents */}
-        <circle cx="18" cy="11.5" r="1" fill="currentColor" opacity="0.4" />
-        <circle cx="18" cy="24.5" r="1" fill="currentColor" opacity="0.4" />
+        {/* Subtle Satellite Neural Pulses */}
+        <circle cx="12" cy="15" r="1.25" fill="currentColor" opacity="0.5" />
+        <circle cx="28" cy="25" r="1.25" fill="currentColor" opacity="0.5" />
       </svg>
     </div>
   );
