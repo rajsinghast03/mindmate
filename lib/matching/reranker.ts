@@ -37,19 +37,49 @@ function calculateStyleSimilarity(textA: string, textB: string): number {
   return Math.max(0.3, 1 - diff / 150);
 }
 
-// Timezone compatibility heuristic (1.0 for same/close timezone, minimum 0.5 for distant)
+// Helper to extract UTC offset in hours from string like 'UTC+5:30' or 'UTC-8'
+function parseUtcOffset(loc: string): number | null {
+  if (!loc) return null;
+  if (loc.toLowerCase().includes('async') || loc.toLowerCase().includes('global')) return null;
+
+  const match = loc.match(/UTC([+-])(\d+)(?::(\d+))?/i);
+  if (!match) return null;
+
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const minutes = match[3] ? parseInt(match[3], 10) / 60 : 0;
+  return sign * (hours + minutes);
+}
+
+// Timezone compatibility heuristic (1.0 for close timezones, 0.9 for async/global)
 function calculateTimezoneScore(locA: string, locB: string): number {
-  if (!locA || !locB) return 0.7;
+  if (!locA || !locB) return 0.8;
   const cleanA = locA.toLowerCase();
   const cleanB = locB.toLowerCase();
   if (cleanA === cleanB) return 1.0;
-  
-  // If timezones share acronym (e.g. GMT, EST, PST, CET)
+
+  // If either user is an async/global thinker
+  if (cleanA.includes('async') || cleanB.includes('async') || cleanA.includes('global') || cleanB.includes('global')) {
+    return 0.95;
+  }
+
+  const offsetA = parseUtcOffset(locA);
+  const offsetB = parseUtcOffset(locB);
+
+  if (offsetA !== null && offsetB !== null) {
+    const diff = Math.abs(offsetA - offsetB);
+    if (diff <= 3) return 1.0;
+    if (diff <= 6) return 0.85;
+    if (diff <= 9) return 0.75;
+    return 0.65;
+  }
+
+  // Fallback: Check if timezone acronym matches (e.g. GMT, EST, PST, CET, IST)
   const tzMatchA = locA.match(/\b([A-Z]{3,4})\b/);
   const tzMatchB = locB.match(/\b([A-Z]{3,4})\b/);
   if (tzMatchA && tzMatchB && tzMatchA[1] === tzMatchB[1]) return 0.95;
 
-  return 0.75;
+  return 0.8;
 }
 
 export type ScoredCandidate = {

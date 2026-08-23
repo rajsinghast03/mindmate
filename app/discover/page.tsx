@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
 import { MatchCard } from '@/components/match-card';
+import { LogoMark } from '@/components/logo';
 import { Sparkles, MessageSquare, RefreshCw, Compass, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function DiscoverPage() {
@@ -36,9 +37,7 @@ export default function DiscoverPage() {
   if (!userProfile) {
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center">
-        <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-paper-200 text-ink-950 font-serif text-2xl font-bold mb-6">
-          M
-        </div>
+        <LogoMark size="lg" className="mx-auto mb-6" />
         <h1 className="font-serif text-3xl font-medium text-ink-950 mb-3">
           Create your Curiosity Profile first
         </h1>

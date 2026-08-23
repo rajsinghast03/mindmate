@@ -3,23 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
+import { LocationSelector } from '@/components/location-selector';
+import { ALL_LOCATIONS } from '@/data/world-locations';
 import { ArrowLeft, Sparkles, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-
-const COMMON_TIMEZONES = [
-  'London, UK (GMT)',
-  'Berlin, DE (CET)',
-  'New York, US (EST)',
-  'San Francisco, US (PST)',
-  'Chicago, US (CST)',
-  'Austin, US (CST)',
-  'Toronto, CA (EST)',
-  'Melbourne, AU (AEST)',
-  'Tokyo, JP (JST)',
-  'Singapore (SGT)',
-  'Mumbai, IN (IST)',
-  'Amsterdam, NL (CET)',
-];
 
 export default function ProfileReviewPage() {
   const router = useRouter();
@@ -27,7 +14,7 @@ export default function ProfileReviewPage() {
 
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState<number | string>(28);
-  const [cityOrTimezone, setCityOrTimezone] = useState(COMMON_TIMEZONES[0]);
+  const [cityOrTimezone, setCityOrTimezone] = useState(ALL_LOCATIONS[0].label);
   const [curiosityText, setCuriosityText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -105,33 +92,32 @@ export default function ProfileReviewPage() {
             Basic Identification
           </h2>
 
-          {/* Display Name */}
-          <div>
-            <label
-              htmlFor="display-name"
-              className="block text-xs font-mono font-semibold uppercase tracking-wider text-ink-700 mb-1.5"
-            >
-              Display Name or Nickname
-            </label>
-            <input
-              id="display-name"
-              type="text"
-              required
-              value={displayName}
-              onChange={e => {
-                setDisplayName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="e.g. Julian, Maya, Soren"
-              className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
-            />
-            <p className="mt-1 text-xs text-ink-500">
-              Only your first name or a chosen nickname is shown to matches.
-            </p>
-          </div>
+          {/* Display Name & Age Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="display-name"
+                className="block text-xs font-mono font-semibold uppercase tracking-wider text-ink-700 mb-1.5"
+              >
+                Display Name or Nickname
+              </label>
+              <input
+                id="display-name"
+                type="text"
+                required
+                value={displayName}
+                onChange={e => {
+                  setDisplayName(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="e.g. Julian, Maya, Soren"
+                className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
+              />
+              <p className="mt-1 text-xs text-ink-500">
+                Only your first name or nickname is shown.
+              </p>
+            </div>
 
-          {/* Age & City Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label
                 htmlFor="age-input"
@@ -153,27 +139,14 @@ export default function ProfileReviewPage() {
                 className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
               />
             </div>
+          </div>
 
-            <div>
-              <label
-                htmlFor="city-input"
-                className="block text-xs font-mono font-semibold uppercase tracking-wider text-ink-700 mb-1.5"
-              >
-                Broad City or Timezone
-              </label>
-              <select
-                id="city-input"
-                value={cityOrTimezone}
-                onChange={e => setCityOrTimezone(e.target.value)}
-                className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
-              >
-                {COMMON_TIMEZONES.map(tz => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Location & Timezone Selector */}
+          <div>
+            <LocationSelector
+              value={cityOrTimezone}
+              onChange={setCityOrTimezone}
+            />
           </div>
         </div>
 

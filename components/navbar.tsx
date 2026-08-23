@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
+import { Logo } from '@/components/logo';
 import { Sparkles, MessageSquare, User, Compass } from 'lucide-react';
 
 export function Navbar() {
@@ -17,14 +18,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 w-full border-b border-paper-300/80 bg-paper-100/90 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
         {/* Brand */}
-        <Link href="/" className="group flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 text-paper-50 font-serif text-lg font-bold shadow-sm transition-transform group-hover:scale-105">
-            M
-          </div>
-          <span className="font-serif text-xl font-medium tracking-tight text-ink-950">
-            Mindmate
-          </span>
-        </Link>
+        <Logo size="sm" showWordmark={true} href="/" />
 
         {/* Navigation */}
         <nav className="flex items-center gap-1 sm:gap-2">

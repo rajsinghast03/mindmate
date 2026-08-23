@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { Logo } from '@/components/logo';
 import { ShieldCheck, Heart } from 'lucide-react';
 
 export function Footer() {
@@ -8,15 +9,11 @@ export function Footer() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-paper-200">
           <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink-950 text-paper-50 font-serif text-sm font-bold">
-              M
-            </div>
-            <div>
-              <span className="font-serif text-base font-medium text-ink-950">Mindmate</span>
-              <p className="text-xs text-ink-500">
-                Meet people through the questions they can&apos;t stop asking.
-              </p>
-            </div>
+            <Logo size="xs" showWordmark={true} />
+            <span className="hidden sm:inline text-xs text-ink-400">•</span>
+            <p className="text-xs text-ink-500 hidden sm:inline">
+              Meet people through the questions they can&apos;t stop asking.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-xs text-ink-600">
