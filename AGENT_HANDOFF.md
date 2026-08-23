@@ -9,8 +9,9 @@
 
 - **Project Name:** Mindmate
 - **Core Concept:** An intellectual, curiosity-first connection platform where people meet through shared questions, curiosities, and ideas—not shallow bios, photos, or swipe feeds.
-- **Tech Stack:** Next.js (App Router, TypeScript), Tailwind CSS, Supabase (PostgreSQL + `pgvector` + Auth + Realtime), OpenAI API (or AI SDK for embeddings and match generation).
-- **Design Aesthetic:** Calm editorial, warm paper background (`#FAF8F5`), dark ink text (`#18181B`), terracotta/coral accent (`#E05A47`), elegant serif headers, no swipe/dating app clichés.
+- **Tech Stack:** Next.js 15 (App Router, TypeScript), Tailwind CSS, Supabase (PostgreSQL + `pgvector` + Auth + Realtime), OpenAI API (with fallback mock synthesizer).
+- **Design Aesthetic:** Calm editorial, warm paper background (`#FAF8F5`), dark ink text (`#18181B`), terracotta/coral accent (`#E05A47`), elegant serif headers (*Newsreader* / *Playfair Display*), no swipe/dating app clichés.
+- **Development Strategy:** Local Interactive Prototype first with rich seed data & in-memory matching pipeline, transitioning seamlessly to Supabase + live OpenAI.
 
 ---
 
