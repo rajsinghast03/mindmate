@@ -30,8 +30,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${newsreader.variable}`}>
-      <body className="bg-paper-100 text-ink-900 flex flex-col min-h-screen">
+    <html
+      lang="en"
+      className={`${inter.variable} ${newsreader.variable}`}
+      suppressHydrationWarning
+    >
+      <body
+        className="bg-paper-100 text-ink-900 flex flex-col min-h-screen"
+        suppressHydrationWarning
+      >
         <MindmateProvider>
           <Navbar />
           <main className="flex-1 w-full">{children}</main>
