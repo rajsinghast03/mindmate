@@ -1,4 +1,4 @@
-# 🏛️ Mindmate System Architecture & AI Pipeline Specification
+# Mindmate System Architecture & AI Pipeline Specification
 
 This document details the system design, component hierarchy, hybrid AI matching algorithm, and privacy architecture for Mindmate.
 

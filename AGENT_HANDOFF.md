@@ -1,11 +1,11 @@
-# 🤖 Agent Handoff & Session State Tracker
+# Agent Handoff & Session State Tracker
 
 > **Notice to any AI Agent or Developer resuming work on Mindmate:**  
 > This file is your **active checkpoint**. Always read this file upon taking over the conversation to know the current phase, completed tasks, in-progress items, and immediate next steps. Update this file at the end of each work session.
 
 ---
 
-## 📌 Quick Orientation
+## Quick Orientation
 
 - **Project Name:** Mindmate
 - **Core Concept:** An intellectual, curiosity-first connection platform where people meet through shared questions, curiosities, and ideas—not shallow bios, photos, or swipe feeds.
@@ -15,18 +15,18 @@
 
 ---
 
-## 🧭 Project Status Overview
+## Project Status Overview
 
 | Metric | Status |
 | :--- | :--- |
-| **Current Phase** | **Phase 2: Supabase Auth & Database Layer (COMPLETED) ➔ Ready for Phase 3: AI Matching & pgvector** |
+| **Current Phase** | **Phase 2: Supabase Auth & Database Layer (COMPLETED) Ready for Phase 3: AI Matching & pgvector** |
 | **Active Milestone** | Phase 2 code complete — apply migration to live Supabase instance to activate |
-| **Build Health** | 🟢 Production build compiles successfully (`next build`) |
+| **Build Health** | Production build compiles successfully (`next build`) |
 | **Last Updated** | 2026-08-24 |
 
 ---
 
-## 📋 Context Files Index
+## Context Files Index
 
 | File | Purpose |
 | :--- | :--- |
@@ -40,7 +40,7 @@
 
 ---
 
-## 🚀 Active Checklist & Immediate Next Steps
+## Active Checklist & Immediate Next Steps
 
 ### Completed in Phase 1
 - [x] Initialized Next.js 15 App Router project with TypeScript, Tailwind CSS, and Google Fonts (*Newsreader* + *Inter*).
@@ -71,12 +71,14 @@
 - [x] Context wired for Supabase mode with localStorage fallback for matches/chat.
 - [x] Onboarding auth gate — draft profile saved in sessionStorage, resume after login.
 - [x] **Location UX overhaul** — country→city cascading dropdowns (India default, 244 countries / ~4.6k cities via GeoNames-derived `data/world-cities.json`, regenerable with `scripts/generate-world-cities.mjs`). Profiles now store a clean display label (`city_or_timezone`) + structured `iana_timezone` (migration `003_profile_timezone.sql`); re-ranker computes DST-safe UTC offsets from IANA timezone with legacy `UTC±X` label parsing as fallback.
+- [x] **Auth email infrastructure** — custom domain `mindmate.site` verified on Resend (SPF/DKIM via CNAME forge records); Resend SMTP wired into Supabase (unlocks template editing + removes built-in 2/hr cap). Branded Magic Link template lives at `supabase/templates/magic-link.html` — re-paste into Supabase dashboard after edits. "Confirm email" disabled deliberately: with OTP-only auth the magic link itself proves inbox ownership (revisit if passwords are ever added). Auth-abuse prevention (Turnstile on login) tracked in ROADMAP 5.3.
+- [x] **Logo simplification** — coral spark dot removed from `LogoMark` SVG everywhere; serif-M-only inside ink circle. Wordmark optically aligned via `translate-y-[0.06em]`.
 
 > **Note:** Apply `supabase/migrations/003_profile_timezone.sql` to live Supabase instances that already ran `001`.
 
 ---
 
-## 🔑 Key Architectural Invariants & Rules
+## Key Architectural Invariants & Rules
 
 1. **No Swipe Feeds & No Forced Labels:** Never introduce swiping or forced categorizations (e.g. "dating", "networking").
 2. **Mutual Consent Only:** Chat is locked until both parties explicitly click "I'd like to connect".
@@ -88,7 +90,7 @@
 
 ---
 
-## 📝 Instructions for Next Agent
+## Instructions for Next Agent
 
 1. Check this file (`AGENT_HANDOFF.md`) and [`ROADMAP.md`](file:///home/rajsinghast03/dev/mindmate/ROADMAP.md).
 2. Continue executing the next unchecked item in the **Up Next** section.

@@ -1,28 +1,28 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 interface LogoProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   showWordmark?: boolean;
   className?: string;
   href?: string;
 }
 
 const SIZE_MAP = {
-  xs: { box: 'h-6 w-6', icon: 24, text: 'text-base' },
-  sm: { box: 'h-8 w-8', icon: 32, text: 'text-xl' },
-  md: { box: 'h-10 w-10', icon: 40, text: 'text-2xl' },
-  lg: { box: 'h-14 w-14', icon: 56, text: 'text-3xl' },
-  xl: { box: 'h-20 w-20', icon: 80, text: 'text-4xl' },
+  xs: { box: "h-6 w-6", icon: 24, text: "text-base" },
+  sm: { box: "h-8 w-8", icon: 32, text: "text-xl" },
+  md: { box: "h-10 w-10", icon: 40, text: "text-2xl" },
+  lg: { box: "h-14 w-14", icon: 56, text: "text-3xl" },
+  xl: { box: "h-20 w-20", icon: 80, text: "text-4xl" },
 };
 
 export function LogoMark({
-  size = 'sm',
-  className = '',
+  size = "sm",
+  className = "",
 }: {
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const { box, icon } = SIZE_MAP[size];
@@ -44,24 +44,16 @@ export function LogoMark({
           d="M8.5 27V9H11.2L18 20.8L24.8 9H27.5V27H24.5V14.2L18.8 24.2H17.2L11.5 14.2V27H8.5Z"
           fill="currentColor"
         />
-
-        {/* Delicate Terracotta Curiosity Spark / Period */}
-        <circle
-          cx="28.5"
-          cy="25"
-          r="2.2"
-          className="fill-accent-500 animate-pulse"
-        />
       </svg>
     </div>
   );
 }
 
 export function Logo({
-  size = 'sm',
+  size = "sm",
   showWordmark = true,
-  className = '',
-  href = '/',
+  className = "",
+  href = "/",
 }: LogoProps) {
   const { text } = SIZE_MAP[size];
 
@@ -70,7 +62,7 @@ export function Logo({
       <LogoMark size={size} />
       {showWordmark && (
         <span
-          className={`font-serif font-medium tracking-tight text-ink-950 group-hover:text-accent-700 transition-colors ${text}`}
+          className={`font-serif font-medium tracking-tight leading-none translate-y-[0.10em] text-ink-950 group-hover:text-accent-700 transition-colors ${text}`}
         >
           Mindmate
         </span>

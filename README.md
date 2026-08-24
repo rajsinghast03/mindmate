@@ -1,26 +1,26 @@
-# 🧠 Mindmate
+# Mindmate
 
 > **Meet people through the questions they can't stop asking.**  
 > An intellectual, curiosity-first connection platform where matches are made through ideas, ongoing questions, and deep curiosities—not shallow bios, photos, or swipe feeds.
 
 ---
 
-## 📖 Project Documentation & Context Hub
+## Project Documentation & Context Hub
 
 To maintain complete continuity across engineering sessions and agent context windows, the project is comprehensively documented across dedicated guides:
 
 | Document | Description |
 | :--- | :--- |
-| 🤖 [**`AGENT_HANDOFF.md`**](file:///home/rajsinghast03/dev/mindmate/AGENT_HANDOFF.md) | **Start here for AI agents & developers.** Active session state, completed milestones, and immediate next steps. |
-| 🗺️ [**`ROADMAP.md`**](file:///home/rajsinghast03/dev/mindmate/ROADMAP.md) | Granular phase breakdown, task checklists, and acceptance criteria. |
-| 🏛️ [**`ARCHITECTURE.md`**](file:///home/rajsinghast03/dev/mindmate/ARCHITECTURE.md) | System design, hybrid AI matching engine pipeline, and privacy model. |
-| 🗄️ [**`DATABASE_SCHEMA.md`**](file:///home/rajsinghast03/dev/mindmate/DATABASE_SCHEMA.md) | PostgreSQL / Supabase schema, `pgvector` indexing, and Row Level Security (RLS). |
-| 🎨 [**`DESIGN_SYSTEM.md`**](file:///home/rajsinghast03/dev/mindmate/DESIGN_SYSTEM.md) | Editorial typography, warm paper color tokens, and UI component specifications. |
-| 📄 [**`mindmate-build-brief.md`**](file:///home/rajsinghast03/dev/mindmate/mindmate-build-brief.md) | The original product build brief and requirements. |
+| [**`AGENT_HANDOFF.md`**](file:///home/rajsinghast03/dev/mindmate/AGENT_HANDOFF.md) | **Start here for AI agents & developers.** Active session state, completed milestones, and immediate next steps. |
+| [**`ROADMAP.md`**](file:///home/rajsinghast03/dev/mindmate/ROADMAP.md) | Granular phase breakdown, task checklists, and acceptance criteria. |
+| [**`ARCHITECTURE.md`**](file:///home/rajsinghast03/dev/mindmate/ARCHITECTURE.md) | System design, hybrid AI matching engine pipeline, and privacy model. |
+| [**`DATABASE_SCHEMA.md`**](file:///home/rajsinghast03/dev/mindmate/DATABASE_SCHEMA.md) | PostgreSQL / Supabase schema, `pgvector` indexing, and Row Level Security (RLS). |
+| [**`DESIGN_SYSTEM.md`**](file:///home/rajsinghast03/dev/mindmate/DESIGN_SYSTEM.md) | Editorial typography, warm paper color tokens, and UI component specifications. |
+| [**`mindmate-build-brief.md`**](file:///home/rajsinghast03/dev/mindmate/mindmate-build-brief.md) | The original product build brief and requirements. |
 
 ---
 
-## 🌟 Core Concept & Principles
+## Core Concept & Principles
 
 1. **AI-Assisted, User-Controlled:** Users copy a privacy-safe prompt to generate a 90–130 word *Curiosity Profile* using ChatGPT or write their own.
 2. **Zero History Scraping:** Mindmate never asks for ChatGPT OAuth access, passwords, or raw conversation logs. Users paste, review, edit, and approve their own text.
@@ -30,7 +30,7 @@ To maintain complete continuity across engineering sessions and agent context wi
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework:** Next.js 15 (App Router, React 19, TypeScript)
 - **Styling:** Tailwind CSS + Tailwind Typography
@@ -41,7 +41,7 @@ To maintain complete continuity across engineering sessions and agent context wi
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## Quick Start (Local Development)
 
 ```bash
 # 1. Install dependencies
@@ -84,3 +84,29 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 6. Verify: `npm run verify:supabase` then restart `npm run dev`.
+7. Run the remaining migrations in order: `002_onboarding_drafts.sql`, `003_profile_timezone.sql`, `004_curiosity_profile_validation.sql`.
+
+### Custom SMTP (Resend — production email)
+
+Supabase's built-in email service caps at ~2 emails/hour and locks template editing. Use Resend with a verified domain instead (free tier: 3,000 emails/month):
+
+1. Add your domain at [resend.com](https://resend.com) → Domains → Add Domain.
+2. Add the DNS records Resend shows (CNAME-based forge setup) at your registrar; verify propagation with `dig CNAME send.yourdomain.com +short` before clicking Verify.
+3. Create an API key (SMTP password) under API Keys.
+4. Supabase Dashboard → Project Settings → Authentication → SMTP Settings → Enable:
+   - Host `smtp.resend.com` · Port `587` · Username `resend` · Password: your `re_...` key
+   - Sender: e.g. `auth@yourdomain.com`
+5. Customize the Magic Link template (Authentication → Emails → Templates) from `supabase/templates/magic-link.html`. Keep every `{{ .ConfirmationURL }}` occurrence intact.
+6. Recommended settings for passwordless-only auth:
+   - Authentication → Providers → Email → **Confirm email OFF** (the magic link itself proves inbox ownership).
+   - Authentication → Rate Limits → raise "emails sent" to ~30/hour.
+
+### Location dataset
+
+Country/state/city data comes from GeoNames (`cities500` + admin divisions, CC-BY 4.0), served as per-country JSON from `public/geo/` and fetched on demand by the onboarding location picker. To regenerate after updating the source files:
+
+```bash
+node scripts/generate-world-cities.mjs /path/to/geonames-dumps
+```
+
+Display names are ASCII-normalized ("Ambala", not "Ambāla").

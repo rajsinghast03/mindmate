@@ -1,10 +1,10 @@
-# 🗺️ Mindmate — Product & Engineering Roadmap
+# Mindmate — Product & Engineering Roadmap
 
 This document defines the complete phased engineering roadmap for building Mindmate. Each milestone is broken down into concrete deliverables, file structures, and acceptance criteria.
 
 ---
 
-## 📊 Phase Overview
+## Phase Overview
 
 ```mermaid
 graph TD
@@ -18,14 +18,14 @@ graph TD
 
 ---
 
-## 📌 Phase 0: Specifications & Foundations (Status: Completed)
+## Phase 0: Specifications & Foundations (Status: Completed)
 - [x] Initialized Git repository.
 - [x] Context & Architecture documentation created.
 - [x] Agent handoff tracking system established.
 
 ---
 
-## 📌 Phase 1: Working Interactive Prototype (Status: Completed)
+## Phase 1: Working Interactive Prototype (Status: Completed)
 **Goal:** Deliver a fully interactive, mobile-responsive client application with local state & seeded profiles to experience the full Mindmate user journey end-to-end.
 
 ### Tasks:
@@ -66,7 +66,7 @@ graph TD
 
 ---
 
-## 📌 Phase 2: Supabase Auth & Database Layer (Status: Completed)
+## Phase 2: Supabase Auth & Database Layer (Status: Completed)
 **Goal:** Transition from local prototype state to persistent cloud storage with Supabase Authentication and PostgreSQL.
 
 ### Tasks:
@@ -79,7 +79,7 @@ graph TD
 
 ---
 
-## 📌 Phase 3: AI Matching Engine & Vector Search (Status: Planned)
+## Phase 3: AI Matching Engine & Vector Search (Status: Planned)
 **Goal:** Implement the hybrid matching algorithm combining vector semantic similarity, hard rules, multi-factor re-ranking, and LLM-generated resonance explanations.
 
 ### Tasks:
@@ -100,7 +100,7 @@ graph TD
 
 ---
 
-## 📌 Phase 4: Mutual Connections & Real-time Chat (Status: Planned)
+## Phase 4: Mutual Connections & Real-time Chat (Status: Planned)
 **Goal:** Safe, consent-driven mutual connections and real-time private messaging.
 
 ### Tasks:
@@ -117,7 +117,7 @@ graph TD
 
 ---
 
-## 📌 Phase 5: Privacy Controls, Moderation & Settings (Status: Planned)
+## Phase 5: Privacy Controls, Moderation & Settings (Status: Planned)
 **Goal:** User safety, full data sovereignty, and compliance.
 
 ### Tasks:
@@ -127,10 +127,14 @@ graph TD
 - [ ] **5.2 Safety & Moderation Tools**
   - Automated toxicity / harassment scanning on messages.
   - Report handling endpoint and admin moderation views.
+- [ ] **5.3 Auth Abuse Prevention**
+  - Cloudflare Turnstile (or hCaptcha) on the login form via Supabase's native CAPTCHA support — prevents email-bombing of magic links through our Resend quota.
+  - Tighten Supabase Auth rate limits per email/IP for OTP requests.
+  - Monitor Resend delivery dashboard for unusual send spikes.
 
 ---
 
-## 📌 Phase 6: Polish, Performance & Deployment (Status: Planned)
+## Phase 6: Polish, Performance & Deployment (Status: Planned)
 **Goal:** Production readiness, performance audit, and deployment on Vercel.
 
 ### Tasks:

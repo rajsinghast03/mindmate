@@ -1,4 +1,4 @@
-# 🗄️ Mindmate Database Schema & Migration Specification
+# Mindmate Database Schema & Migration Specification
 
 This document provides the complete PostgreSQL database schema, `pgvector` indexing, Row-Level Security (RLS) policies, and stored procedures for Supabase.
 

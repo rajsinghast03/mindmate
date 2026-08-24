@@ -1,4 +1,4 @@
-# 🎨 Mindmate Design System & Editorial Visual Guidelines
+# Mindmate Design System & Editorial Visual Guidelines
 
 This document specifies the visual design language, color palette, typography hierarchy, UI components, and aesthetic principles for Mindmate.
 
