@@ -2,20 +2,32 @@
 
 import React from 'react';
 import { Match } from '@/types';
-import { Sparkles, HelpCircle, MapPin, Check, X } from 'lucide-react';
+import { Sparkles, HelpCircle, MapPin, Check, X, Clock, Inbox } from 'lucide-react';
 
 interface MatchCardProps {
   match: Match;
-  onConnect: (candidateId: string) => void;
-  onPass: (candidateId: string) => void;
-  isConnected?: boolean;
+  onConnect: (matchId: string) => void;
+  onPass: (matchId: string) => void;
+  disabled?: boolean;
 }
 
-export function MatchCard({ match, onConnect, onPass, isConnected = false }: MatchCardProps) {
-  const { candidateProfile, explanation, sharedCuriosity, sharedQuestion } = match;
+export function MatchCard({ match, onConnect, onPass, disabled = false }: MatchCardProps) {
+  const { candidateProfile, explanation, sharedCuriosity, sharedQuestion, status, direction } =
+    match;
+
+  const isIncomingRequest = status === 'requested' && direction === 'incoming';
+  const isAwaitingThem = status === 'requested' && direction === 'outgoing';
+  const isConnected = status === 'connected';
 
   return (
     <article className="relative overflow-hidden rounded-3xl border border-paper-300 bg-paper-50 p-6 sm:p-8 shadow-card transition-all hover:shadow-lifted">
+      {isIncomingRequest && (
+        <div className="mb-5 flex items-center gap-2 rounded-2xl bg-accent-50 border border-accent-200 px-4 py-2.5 text-xs font-semibold text-accent-700">
+          <Inbox className="h-4 w-4 text-accent-500 shrink-0" />
+          <span>{candidateProfile.displayName} would like to connect with you</span>
+        </div>
+      )}
+
       {/* Header Info */}
       <div className="flex items-start justify-between gap-4 border-b border-paper-200 pb-5">
         <div className="flex items-center gap-3.5">
@@ -24,13 +36,18 @@ export function MatchCard({ match, onConnect, onPass, isConnected = false }: Mat
             {candidateProfile.displayName.charAt(0)}
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 flex-wrap">
               <h3 className="font-serif text-xl sm:text-2xl font-medium text-ink-950">
                 {candidateProfile.displayName}
               </h3>
               <span className="text-sm font-sans text-ink-500 font-normal">
                 {candidateProfile.age}
               </span>
+              {candidateProfile.isDemo && (
+                <span className="rounded-full bg-paper-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-600">
+                  Demo profile
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1 text-xs text-ink-500 mt-0.5">
               <MapPin className="h-3.5 w-3.5 text-ink-400" />
@@ -39,10 +56,10 @@ export function MatchCard({ match, onConnect, onPass, isConnected = false }: Mat
           </div>
         </div>
 
-        {/* Shared Theme Pill */}
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-100/90 px-3 py-1 text-xs font-semibold text-accent-700">
-          <Sparkles className="h-3 w-3 text-accent-500" />
-          <span>{sharedCuriosity}</span>
+        {/* Shared Theme Pill — width-capped so an over-long theme can't break the header */}
+        <span className="inline-flex max-w-[45%] shrink items-start gap-1.5 rounded-full bg-accent-100/90 px-3 py-1 text-xs font-semibold text-accent-700">
+          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-accent-500" />
+          <span className="line-clamp-2">{sharedCuriosity}</span>
         </span>
       </div>
 
@@ -88,24 +105,40 @@ export function MatchCard({ match, onConnect, onPass, isConnected = false }: Mat
         {isConnected ? (
           <div className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-sage-100 text-sage-700 font-medium text-sm">
             <Check className="h-4 w-4" />
-            <span>Connected — Private conversation open</span>
+            <span>Connected — private conversation open</span>
           </div>
+        ) : isAwaitingThem ? (
+          <>
+            <div className="flex-1 flex items-center gap-2 py-3 text-sm text-ink-600">
+              <Clock className="h-4 w-4 text-ink-400 shrink-0" />
+              <span>Request sent — waiting for them to accept</span>
+            </div>
+            <button
+              onClick={() => onPass(match.id)}
+              disabled={disabled}
+              className="rounded-full px-4 py-2.5 text-xs font-medium text-ink-500 hover:bg-paper-200/80 hover:text-ink-950 transition-all disabled:opacity-50"
+            >
+              Withdraw
+            </button>
+          </>
         ) : (
           <>
             <button
-              onClick={() => onPass(candidateProfile.id)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-medium text-ink-600 hover:bg-paper-200/80 hover:text-ink-950 transition-all active:scale-95"
+              onClick={() => onPass(match.id)}
+              disabled={disabled}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-full px-5 py-3 text-sm font-medium text-ink-600 hover:bg-paper-200/80 hover:text-ink-950 transition-all active:scale-95 disabled:opacity-50"
             >
               <X className="h-4 w-4 text-ink-400" />
-              <span>Skip for now</span>
+              <span>Not for me</span>
             </button>
 
             <button
-              onClick={() => onConnect(candidateProfile.id)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-600 hover:shadow-soft active:scale-95"
+              onClick={() => onConnect(match.id)}
+              disabled={disabled}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-full bg-accent-500 px-6 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-600 hover:shadow-soft active:scale-95 disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
-              <span>Start a conversation</span>
+              <span>I&rsquo;d like to connect</span>
             </button>
           </>
         )}

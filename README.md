@@ -36,7 +36,7 @@ To maintain complete continuity across engineering sessions and agent context wi
 - **Styling:** Tailwind CSS + Tailwind Typography
 - **Database & Auth:** Supabase (PostgreSQL, Row-Level Security, Auth)
 - **Vector Search:** `pgvector` with Cosine Distance (`<=>`) index
-- **AI Intelligence:** OpenAI API (`text-embedding-3-small` embeddings + structured LLM synthesizer) or Google Gemini
+- **AI Intelligence:** Google Gemini free tier (`gemini-embedding-001` at 1536 dims + `gemini-3.5-flash-lite` structured synthesizer), with OpenAI as an optional paid alternative
 - **Deployment:** Vercel
 
 ---
@@ -84,7 +84,67 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 6. Verify: `npm run verify:supabase` then restart `npm run dev`.
-7. Run the remaining migrations in order: `002_onboarding_drafts.sql`, `003_profile_timezone.sql`, `004_curiosity_profile_validation.sql`.
+7. Run the remaining migrations in order: `002_onboarding_drafts.sql`, `003_profile_timezone.sql`, `004_curiosity_profile_validation.sql`, `005_phase3_matching.sql`.
+
+### Matching Setup (Phase 3 — embeddings, consent, realtime chat)
+
+Matching needs two more secrets that the client-side keys above don't cover. Placeholder values
+are detected and reported explicitly, so if either is unfilled you'll get a clear 503 rather than
+an opaque "Invalid API key".
+
+```bash
+GEMINI_API_KEY=...                 # embeddings + resonance synthesis (free tier)
+SUPABASE_SECRET_KEY=sb_secret_...  # Settings → API Keys → Secret keys
+```
+
+The secret key is **server-only** and bypasses Row Level Security. Matching needs it because
+the `profiles` policy is own-row-only, so a signed-in user cannot read anyone else's profile —
+yet suggesting matches requires exactly that, plus inserting `matches` and `conversations` rows
+that no client policy grants. It is read only inside route handlers via `lib/supabase/service.ts`
+and never reaches the browser.
+
+Use the new `sb_secret_...` key rather than the legacy `service_role` JWT: Supabase is retiring
+anon/service_role keys by the end of 2026, and secret keys additionally return 401 if they ever
+leak into a browser. `SUPABASE_SERVICE_ROLE_KEY` still works as a fallback.
+
+**Both AI calls run on Google's free tier.** Get a key at
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey) — no credit card, no billing
+account:
+
+- **Embeddings** — `gemini-embedding-001` at `outputDimensionality: 1536`, which matches the
+  existing `VECTOR(1536)` column exactly, so no migration is needed. Only the full 3072-dimension
+  output is pre-normalized by Google, so the app L2-normalizes smaller outputs itself.
+- **Resonance synthesis** — `gemini-3.5-flash-lite` with a `responseSchema`, giving schema-enforced
+  JSON. Chosen over the flagship `gemini-3.7-flash`, which was timing out on the free tier; measured
+  against the real prompt, flash-lite answered in ~1.5s vs ~6.6s for `gemini-2.5-flash` and held the
+  second-person voice the match card needs.
+
+Model IDs are env-overridable (`GEMINI_EMBEDDING_MODEL`, `GEMINI_CHAT_MODEL`) because Google
+retires Flash models faster than this repo gets updated, and free-tier capacity varies by model.
+All provider calls retry transient 429/503/timeout responses three times with backoff and a 15s
+per-attempt timeout.
+
+OpenAI remains supported as a paid alternative: set `OPENAI_API_KEY` and leave `GEMINI_API_KEY`
+unset, and the app uses `text-embedding-3-small` and `gpt-4o-mini` instead. Gemini wins whenever
+both keys are present.
+
+Then check the provider and populate the candidate pool:
+
+```bash
+npm run verify:ai            # confirms 1536-dim unit vectors + a valid chat model ID
+npm run seed:demo            # 8 demo personas as real users, with embeddings (idempotent)
+npm run backfill:embeddings  # fills any profile whose embedding is null
+```
+
+Run `verify:ai` first — it catches the two failures that are otherwise hard to diagnose: an
+embedding dimension that won't fit the column, and a retired chat model ID returning 404.
+
+Demo personas are flagged `is_demo`. They auto-accept connection requests and reply in chat so a
+single person can walk the whole flow; the UI labels them as demo profiles. Between two real
+accounts the handshake is genuine — a request stays pending until the other person accepts.
+
+With no AI key at all the app still runs: profiles save with a null embedding, matching returns
+503 until you backfill, and the resonance synthesizer falls back to its offline generator.
 
 ### Custom SMTP (Resend — production email)
 

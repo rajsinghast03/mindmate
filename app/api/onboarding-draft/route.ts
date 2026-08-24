@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isSupabaseConfigured, getSupabaseUrl, getSupabasePublishableKey } from '@/lib/config';
+import { createServiceClient } from '@/lib/supabase/service';
+import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
-
-function getServiceClient() {
-  const url = getSupabaseUrl()!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    getSupabasePublishableKey()!;
-
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
 
 /** Save draft before magic link (pre-auth). */
 export async function POST(req: NextRequest) {
@@ -39,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
   }
 
-  const supabase = getServiceClient();
+  const supabase = createServiceClient();
   const { error } = await supabase.from('onboarding_drafts').upsert({
     email: String(email).trim().toLowerCase(),
     draft: { ...draft, curiosityProfile: profileValidation.normalizedText },
@@ -68,7 +56,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = getServiceClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('onboarding_drafts')
     .select('draft')

@@ -1,21 +1,21 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Profile, Match, Conversation, Message } from '@/types';
 import { SEED_PROFILES } from '@/data/seed-profiles';
 import { reRankCandidates } from '@/lib/matching/reranker';
 import { generateLocalResonance } from '@/lib/matching/synthesizer';
+import { DEMO_REPLIES } from '@/lib/matching/demo-replies';
 import { createClient } from '@/lib/supabase/client';
+import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
-const SUPABASE_MODE =
-  typeof window !== 'undefined'
-    ? Boolean(
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-          (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      )
-    : false;
+/**
+ * Same check the server uses, so unfilled .env placeholders can't switch the client
+ * into Supabase mode. NEXT_PUBLIC_* values are inlined at build time, so this
+ * resolves identically during SSR and hydration.
+ */
+const SUPABASE_MODE = isSupabaseConfigured();
 
 export type AuthUser = {
   id: string;
@@ -38,20 +38,25 @@ interface MindmateContextType {
     curiosityProfile: string,
     ianaTimezone?: string | null
   ) => Promise<void>;
-  connectProfile: (candidateId: string) => void;
-  passProfile: (candidateId: string) => void;
+  /** Send or accept a connection request. Resolves to the match's new state. */
+  connectMatch: (matchId: string) => Promise<Match | null>;
+  passMatch: (matchId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => void;
-  unmatchConversation: (conversationId: string) => void;
+  unmatchConversation: (conversationId: string) => Promise<void>;
   togglePauseDiscovery: () => Promise<void>;
   resetAllData: () => Promise<void>;
   signOut: () => Promise<void>;
-  refreshCandidates: () => void;
+  refreshCandidates: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'mindmate_state_v1';
 
 const MindmateContext = createContext<MindmateContextType | undefined>(undefined);
 
+/**
+ * Local demo mode only (no Supabase env vars). With Supabase configured, candidates
+ * come from pgvector and resonance text is written once by the LLM synthesizer.
+ */
 function buildMatchesFromPool(userProfile: Profile, pool: Profile[], passedSet: Set<string>): Match[] {
   const scored = reRankCandidates(userProfile, pool, passedSet);
   return scored.slice(0, 3).map(sc => {
@@ -60,13 +65,24 @@ function buildMatchesFromPool(userProfile: Profile, pool: Profile[], passedSet: 
       id: `match-${sc.candidate.id}`,
       profileAId: userProfile.id,
       profileBId: sc.candidate.id,
-      candidateProfile: sc.candidate,
+      candidateProfile: {
+        id: sc.candidate.id,
+        displayName: sc.candidate.displayName,
+        age: sc.candidate.age,
+        cityOrTimezone: sc.candidate.cityOrTimezone,
+        ianaTimezone: sc.candidate.ianaTimezone,
+        curiosityTags: sc.candidate.curiosityTags,
+        curiosityProfile: sc.candidate.curiosityProfile,
+        isDemo: true,
+      },
       score: sc.score,
       explanation: resonance.explanation,
       sharedCuriosity: resonance.sharedCuriosity,
       sharedQuestion: resonance.sharedQuestion,
       status: 'suggested' as const,
       requestedByProfileId: null,
+      direction: null,
+      conversationId: null,
       createdAt: new Date().toISOString(),
     };
   });
@@ -80,24 +96,50 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   const [passedProfileIds, setPassedProfileIds] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const refreshCandidates = useCallback(() => {
+  // Guards the top-up call so a re-render storm can't fire several generations.
+  const generating = useRef(false);
+
+  const applyState = useCallback(
+    (payload: { matches?: Match[]; conversations?: Conversation[] }) => {
+      if (payload.matches) setMatches(payload.matches);
+      if (payload.conversations) setConversations(payload.conversations);
+    },
+    []
+  );
+
+  /** Ask the server to top up suggestions, then adopt whatever state it returns. */
+  const generateSuggestions = useCallback(async () => {
+    if (!SUPABASE_MODE || generating.current) return;
+    generating.current = true;
+    try {
+      const res = await fetch('/api/match', { method: 'POST' });
+      if (res.ok) applyState(await res.json());
+    } catch (e) {
+      console.error('Failed to refresh candidates:', e);
+    } finally {
+      generating.current = false;
+    }
+  }, [applyState]);
+
+  const refreshCandidates = useCallback(async () => {
+    if (SUPABASE_MODE) {
+      await generateSuggestions();
+      return;
+    }
+
     if (!userProfile) return;
 
     const passedSet = new Set(passedProfileIds);
-    const connectedOrRequestedIds = new Set(matches.map(m => m.candidateProfile.id));
-    const pool = SEED_PROFILES.filter(
-      p => !passedSet.has(p.id) && !connectedOrRequestedIds.has(p.id)
-    );
+    const alreadyShown = new Set(matches.map(m => m.candidateProfile.id));
+    const pool = SEED_PROFILES.filter(p => !passedSet.has(p.id) && !alreadyShown.has(p.id));
 
-    const newMatches = buildMatchesFromPool(userProfile, pool, passedSet);
+    setMatches(prev => [
+      ...prev.filter(m => m.status !== 'suggested'),
+      ...buildMatchesFromPool(userProfile, pool, passedSet),
+    ]);
+  }, [generateSuggestions, userProfile, passedProfileIds, matches]);
 
-    setMatches(prev => {
-      const existingActive = prev.filter(m => m.status !== 'suggested');
-      return [...existingActive, ...newMatches];
-    });
-  }, [userProfile, passedProfileIds, matches]);
-
-  // Load state: Supabase profile + local match/chat state
+  // Initial load
   useEffect(() => {
     const load = async () => {
       try {
@@ -105,23 +147,22 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
           const res = await fetch('/api/profile');
           if (res.ok) {
             const data = await res.json();
-            if (data.user) {
-              setAuthUser({ id: data.user.id, email: data.user.email });
-            }
+            if (data.user) setAuthUser({ id: data.user.id, email: data.user.email });
             if (data.profile) {
               setUserProfile(data.profile);
-              const passedSet = new Set<string>();
-              const initialMatches = buildMatchesFromPool(data.profile, SEED_PROFILES, passedSet);
-              setMatches(initialMatches);
+
+              const matchRes = await fetch('/api/matches');
+              if (matchRes.ok) applyState(await matchRes.json());
             }
           }
+          return;
         }
 
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (!SUPABASE_MODE && parsed.userProfile) setUserProfile(parsed.userProfile);
-          if (parsed.matches) setMatches(prev => (prev.length ? prev : parsed.matches));
+          if (parsed.userProfile) setUserProfile(parsed.userProfile);
+          if (parsed.matches) setMatches(parsed.matches);
           if (parsed.conversations) setConversations(parsed.conversations);
           if (parsed.passedProfileIds) setPassedProfileIds(parsed.passedProfileIds);
         }
@@ -133,20 +174,26 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     };
 
     load();
-  }, []);
+  }, [applyState]);
 
-  // Persist match/chat state locally (Phase 4 moves this to Supabase)
+  // Top up suggestions once the profile is known. Server-side caps at 3.
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !SUPABASE_MODE || !userProfile) return;
+    if (userProfile.visibility === 'paused') return;
+    if (matches.some(m => m.status === 'suggested')) return;
+    void generateSuggestions();
+    // Intentionally not keyed on `matches` — this should fire on profile load, not
+    // every time the match list changes, or passing a card would regenerate forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, userProfile?.id, userProfile?.visibility]);
+
+  // Local demo mode persists everything; Supabase mode is server-authoritative.
+  useEffect(() => {
+    if (!isLoaded || SUPABASE_MODE) return;
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({
-          userProfile: SUPABASE_MODE ? null : userProfile,
-          matches,
-          conversations,
-          passedProfileIds,
-        })
+        JSON.stringify({ userProfile, matches, conversations, passedProfileIds })
       );
     } catch (e) {
       console.error('Failed to save Mindmate local storage:', e);
@@ -169,7 +216,13 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, age, cityOrTimezone, curiosityProfile: profileValidation.normalizedText, ianaTimezone }),
+        body: JSON.stringify({
+          displayName,
+          age,
+          cityOrTimezone,
+          curiosityProfile: profileValidation.normalizedText,
+          ianaTimezone,
+        }),
       });
 
       if (!res.ok) {
@@ -179,7 +232,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
 
       const { profile } = await res.json();
       setUserProfile(profile);
-      setMatches(buildMatchesFromPool(profile, SEED_PROFILES, new Set(passedProfileIds)));
+      await generateSuggestions();
       return;
     }
 
@@ -200,41 +253,83 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     setMatches(buildMatchesFromPool(profile, SEED_PROFILES, new Set(passedProfileIds)));
   };
 
-  const connectProfile = (candidateId: string) => {
-    const targetMatch = matches.find(m => m.candidateProfile.id === candidateId);
-    if (!targetMatch || !userProfile) return;
+  /** POST a state-machine transition and adopt the server's view of the world. */
+  const transition = async (
+    matchId: string,
+    action: 'connect' | 'pass' | 'unmatch'
+  ): Promise<Match | null> => {
+    const res = await fetch(`/api/matches/${matchId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
 
-    const updatedMatch: Match = {
-      ...targetMatch,
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Could not update this connection.');
+    }
+
+    const data = await res.json();
+    applyState(data);
+    return data.match ?? null;
+  };
+
+  const connectMatch = async (matchId: string): Promise<Match | null> => {
+    if (SUPABASE_MODE) return transition(matchId, 'connect');
+
+    const target = matches.find(m => m.id === matchId);
+    if (!target || !userProfile) return null;
+
+    // Local demo mode has no second party, so it connects straight away.
+    const connected: Match = {
+      ...target,
       status: 'connected',
       requestedByProfileId: userProfile.id,
+      conversationId: `convo-${target.id}`,
     };
 
-    setMatches(prev => prev.map(m => (m.id === targetMatch.id ? updatedMatch : m)));
+    setMatches(prev => prev.map(m => (m.id === target.id ? connected : m)));
 
-    const existingConvo = conversations.find(c => c.matchId === targetMatch.id);
-    if (!existingConvo) {
-      const newConversation: Conversation = {
-        id: `convo-${targetMatch.id}`,
-        matchId: targetMatch.id,
-        candidateProfile: targetMatch.candidateProfile,
-        sharedQuestion: targetMatch.sharedQuestion,
-        resonanceSummary: targetMatch.explanation,
-        messages: [],
-        createdAt: new Date().toISOString(),
-        lastActivityAt: new Date().toISOString(),
-      };
-      setConversations(prev => [newConversation, ...prev]);
+    setConversations(prev =>
+      prev.some(c => c.matchId === target.id)
+        ? prev
+        : [
+            {
+              id: `convo-${target.id}`,
+              matchId: target.id,
+              candidateProfile: target.candidateProfile,
+              sharedQuestion: target.sharedQuestion,
+              resonanceSummary: target.explanation,
+              messages: [],
+              messageCount: 0,
+              createdAt: new Date().toISOString(),
+              lastActivityAt: new Date().toISOString(),
+            },
+            ...prev,
+          ]
+    );
+
+    return connected;
+  };
+
+  const passMatch = async (matchId: string) => {
+    if (SUPABASE_MODE) {
+      await transition(matchId, 'pass');
+      await generateSuggestions();
+      return;
     }
+
+    const target = matches.find(m => m.id === matchId);
+    if (target) setPassedProfileIds(prev => [...prev, target.candidateProfile.id]);
+    setMatches(prev => prev.filter(m => m.id !== matchId));
   };
 
-  const passProfile = (candidateId: string) => {
-    setPassedProfileIds(prev => [...prev, candidateId]);
-    setMatches(prev => prev.filter(m => m.candidateProfile.id !== candidateId));
-  };
-
+  /**
+   * Local demo mode only — Supabase-backed chat sends through
+   * /api/conversations/[id]/messages so RLS stays the enforcement point.
+   */
   const sendMessage = (conversationId: string, text: string) => {
-    if (!userProfile || !text.trim()) return;
+    if (SUPABASE_MODE || !userProfile || !text.trim()) return;
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -244,57 +339,48 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
     };
 
-    setConversations(prev =>
-      prev.map(c => {
-        if (c.id !== conversationId) return c;
-        return {
-          ...c,
-          messages: [...c.messages, userMessage],
-          lastActivityAt: new Date().toISOString(),
-        };
-      })
-    );
+    const appendMessage = (message: Message) =>
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === conversationId
+            ? {
+                ...c,
+                messages: [...c.messages, message],
+                messageCount: c.messageCount + 1,
+                lastActivityAt: message.createdAt,
+              }
+            : c
+        )
+      );
+
+    appendMessage(userMessage);
 
     const convo = conversations.find(c => c.id === conversationId);
-    if (convo) {
-      setTimeout(() => {
-        const replies = [
-          `That really resonates with me. I was just thinking about how rare it is to find someone who notices that exact subtlety.`,
-          `I love how you phrased that. In my experience, once you start looking at it through that lens, you can't unsee it.`,
-          `That makes so much sense! It reminds me of why I wanted to start this project in the first place. Tell me more about what got you interested in this.`,
-          `Such a great perspective. What's the next thing you're hoping to experiment with around that?`,
-        ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    if (!convo) return;
 
-        const replyMessage: Message = {
-          id: `msg-reply-${Date.now()}`,
-          conversationId,
-          senderProfileId: convo.candidateProfile.id,
-          body: randomReply,
-          createdAt: new Date().toISOString(),
-        };
-
-        setConversations(latest =>
-          latest.map(c => {
-            if (c.id !== conversationId) return c;
-            return {
-              ...c,
-              messages: [...c.messages, replyMessage],
-              lastActivityAt: new Date().toISOString(),
-            };
-          })
-        );
-      }, 1400);
-    }
+    setTimeout(() => {
+      appendMessage({
+        id: `msg-reply-${Date.now()}`,
+        conversationId,
+        senderProfileId: convo.candidateProfile.id,
+        body: DEMO_REPLIES[Math.floor(Math.random() * DEMO_REPLIES.length)],
+        createdAt: new Date().toISOString(),
+      });
+    }, 1400);
   };
 
-  const unmatchConversation = (conversationId: string) => {
+  const unmatchConversation = async (conversationId: string) => {
     const convo = conversations.find(c => c.id === conversationId);
-    if (convo) {
-      setPassedProfileIds(prev => [...prev, convo.candidateProfile.id]);
-      setMatches(prev => prev.filter(m => m.id !== convo.matchId));
-      setConversations(prev => prev.filter(c => c.id !== conversationId));
+    if (!convo) return;
+
+    if (SUPABASE_MODE) {
+      await transition(convo.matchId, 'unmatch');
+      return;
     }
+
+    setPassedProfileIds(prev => [...prev, convo.candidateProfile.id]);
+    setMatches(prev => prev.filter(m => m.id !== convo.matchId));
+    setConversations(prev => prev.filter(c => c.id !== conversationId));
   };
 
   const togglePauseDiscovery = async () => {
@@ -317,16 +403,19 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     setUserProfile({ ...userProfile, visibility: nextVis });
   };
 
-  const signOut = async () => {
-    if (SUPABASE_MODE) {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      setAuthUser(null);
-    }
+  const clearLocalState = () => {
     setUserProfile(null);
     setMatches([]);
     setConversations([]);
     setPassedProfileIds([]);
+  };
+
+  const signOut = async () => {
+    if (SUPABASE_MODE) {
+      await createClient().auth.signOut();
+      setAuthUser(null);
+    }
+    clearLocalState();
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -337,10 +426,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
-    setUserProfile(null);
-    setMatches([]);
-    setConversations([]);
-    setPassedProfileIds([]);
+    clearLocalState();
   };
 
   return (
@@ -355,8 +441,8 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         passedProfileIds,
         isLoaded,
         saveProfile,
-        connectProfile,
-        passProfile,
+        connectMatch,
+        passMatch,
         sendMessage,
         unmatchConversation,
         togglePauseDiscovery,

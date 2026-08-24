@@ -6,25 +6,28 @@ import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { MatchCard } from '@/components/match-card';
 import { LogoMark } from '@/components/logo';
-import { Sparkles, MessageSquare, RefreshCw, Compass, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Sparkles, MessageSquare, RefreshCw, Compass, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
 
 export default function DiscoverPage() {
   const router = useRouter();
   const {
     userProfile,
     matches,
-    connectProfile,
-    passProfile,
+    connectMatch,
+    passMatch,
     refreshCandidates,
     isLoaded,
     authUser,
     isSupabaseMode,
   } = useMindmate();
 
-  const [connectedToast, setConnectedToast] = useState<{
+  const [toast, setToast] = useState<{
+    kind: 'connected' | 'requested';
     displayName: string;
-    question: string;
+    conversationId?: string | null;
   } | null>(null);
+  const [pendingAction, setPendingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Resume onboarding if magic link landed on discover with a saved draft
   useEffect(() => {
@@ -70,23 +73,40 @@ export default function DiscoverPage() {
   // Active suggested matches
   const activeSuggested = matches.filter(m => m.status === 'suggested');
 
-  const handleConnect = (candidateId: string) => {
-    const target = matches.find(m => m.candidateProfile.id === candidateId);
-    connectProfile(candidateId);
+  const handleConnect = async (matchId: string) => {
+    const target = matches.find(m => m.id === matchId);
+    setPendingAction(true);
+    setActionError(null);
 
-    if (target) {
-      setConnectedToast({
-        displayName: target.candidateProfile.displayName,
-        question: target.sharedQuestion,
-      });
+    try {
+      const updated = await connectMatch(matchId);
+      const displayName =
+        updated?.candidateProfile.displayName ?? target?.candidateProfile.displayName ?? 'them';
 
-      // Auto dismiss toast after 6s
-      setTimeout(() => setConnectedToast(null), 6000);
+      // Connecting to a real person opens a request; only a mutual yes opens the chat.
+      setToast(
+        updated?.status === 'connected'
+          ? { kind: 'connected', displayName, conversationId: updated.conversationId }
+          : { kind: 'requested', displayName }
+      );
+      setTimeout(() => setToast(null), 8000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not send that request.');
+    } finally {
+      setPendingAction(false);
     }
   };
 
-  const handlePass = (candidateId: string) => {
-    passProfile(candidateId);
+  const handlePass = async (matchId: string) => {
+    setPendingAction(true);
+    setActionError(null);
+    try {
+      await passMatch(matchId);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not update that card.');
+    } finally {
+      setPendingAction(false);
+    }
   };
 
   return (
@@ -105,32 +125,54 @@ export default function DiscoverPage() {
         </p>
       </div>
 
-      {/* Connected Toast Notification */}
-      {connectedToast && (
-        <div className="mb-8 rounded-2xl bg-sage-50 border border-sage-200 p-5 shadow-soft animate-in fade-in slide-in-from-top-4 duration-300">
+      {actionError && (
+        <div className="mb-6 rounded-2xl border border-accent-200 bg-accent-50 p-4 text-xs font-medium text-accent-700">
+          {actionError}
+        </div>
+      )}
+
+      {/* Outcome notice — a request is not yet a conversation */}
+      {toast && (
+        <div
+          className={`mb-8 rounded-2xl border p-5 shadow-soft animate-in fade-in slide-in-from-top-4 duration-300 ${
+            toast.kind === 'connected'
+              ? 'bg-sage-50 border-sage-200'
+              : 'bg-paper-50 border-paper-300'
+          }`}
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-sage-600 mt-0.5 shrink-0" />
+              {toast.kind === 'connected' ? (
+                <CheckCircle2 className="h-5 w-5 text-sage-600 mt-0.5 shrink-0" />
+              ) : (
+                <Clock className="h-5 w-5 text-ink-500 mt-0.5 shrink-0" />
+              )}
               <div>
                 <h4 className="font-serif text-base font-medium text-ink-950">
-                  You connected with {connectedToast.displayName}!
+                  {toast.kind === 'connected'
+                    ? `You connected with ${toast.displayName}!`
+                    : `Request sent to ${toast.displayName}`}
                 </h4>
                 <p className="text-xs text-ink-600 mt-0.5">
-                  A private conversation is open with your shared starter question.
+                  {toast.kind === 'connected'
+                    ? 'A private conversation is open with your shared starter question.'
+                    : 'They decide next. The conversation opens only once they accept too.'}
                 </p>
-                <div className="mt-3">
-                  <Link
-                    href="/connections"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-sage-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sage-600 transition-colors"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span>Open Conversation</span>
-                  </Link>
-                </div>
+                {toast.kind === 'connected' && (
+                  <div className="mt-3">
+                    <Link
+                      href={toast.conversationId ? `/chat/${toast.conversationId}` : '/connections'}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-sage-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-sage-600 transition-colors"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      <span>Open Conversation</span>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
             <button
-              onClick={() => setConnectedToast(null)}
+              onClick={() => setToast(null)}
               className="text-xs text-ink-400 hover:text-ink-700"
             >
               ✕
@@ -148,6 +190,7 @@ export default function DiscoverPage() {
               match={match}
               onConnect={handleConnect}
               onPass={handlePass}
+              disabled={pendingAction}
             />
           ))}
         </div>
@@ -174,7 +217,7 @@ export default function DiscoverPage() {
             </Link>
 
             <button
-              onClick={refreshCandidates}
+              onClick={() => void refreshCandidates()}
               className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-full border border-paper-300 bg-paper-100 px-5 py-3 text-sm font-medium text-ink-700 hover:bg-paper-200 transition-all"
             >
               <RefreshCw className="h-3.5 w-3.5" />

@@ -11,8 +11,12 @@ export function Navbar() {
   const pathname = usePathname();
   const { userProfile, conversations, matches, isSupabaseMode, authUser, signOut } = useMindmate();
 
-  const connectedCount = conversations.length;
   const suggestedCount = matches.filter(m => m.status === 'suggested').length;
+  const incomingRequestCount = matches.filter(
+    m => m.status === 'requested' && m.direction === 'incoming'
+  ).length;
+  // Requests awaiting this user belong on the Conversations tab alongside threads.
+  const connectionsCount = conversations.length + incomingRequestCount;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-paper-300/80 bg-paper-100/90 backdrop-blur-md transition-all">
@@ -51,9 +55,13 @@ export function Navbar() {
               >
                 <MessageSquare className="h-4 w-4" />
                 <span>Conversations</span>
-                {connectedCount > 0 && (
-                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sage-500 px-1 text-[10px] font-bold text-white">
-                    {connectedCount}
+                {connectionsCount > 0 && (
+                  <span
+                    className={`ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
+                      incomingRequestCount > 0 ? 'bg-accent-500' : 'bg-sage-500'
+                    }`}
+                  >
+                    {connectionsCount}
                   </span>
                 )}
               </Link>

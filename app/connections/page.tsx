@@ -1,12 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
-import { MessageSquare, Compass, ArrowRight, Sparkles, MapPin } from 'lucide-react';
+import { MatchCard } from '@/components/match-card';
+import { MessageSquare, Compass, ArrowRight, Sparkles, MapPin, Inbox } from 'lucide-react';
 
 export default function ConnectionsPage() {
-  const { conversations, isLoaded } = useMindmate();
+  const { conversations, matches, connectMatch, passMatch, isLoaded } = useMindmate();
+
+  const [pendingAction, setPendingAction] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (!isLoaded) {
     return (
@@ -15,6 +19,25 @@ export default function ConnectionsPage() {
       </div>
     );
   }
+
+  // Incoming first — those are the ones waiting on a decision from this user.
+  const pending = matches
+    .filter(m => m.status === 'requested')
+    .sort((a, b) => (a.direction === 'incoming' ? -1 : 0) - (b.direction === 'incoming' ? -1 : 0));
+
+  const incomingCount = pending.filter(m => m.direction === 'incoming').length;
+
+  const runAction = async (fn: () => Promise<unknown>) => {
+    setPendingAction(true);
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not update this connection.');
+    } finally {
+      setPendingAction(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
@@ -30,6 +53,41 @@ export default function ConnectionsPage() {
           Private, consent-first dialogues that began with a shared question.
         </p>
       </div>
+
+      {actionError && (
+        <div className="mb-6 rounded-2xl border border-accent-200 bg-accent-50 p-4 text-xs font-medium text-accent-700">
+          {actionError}
+        </div>
+      )}
+
+      {/* Pending requests — a conversation opens only when both sides say yes */}
+      {pending.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-center gap-2 mb-4">
+            <Inbox className="h-4 w-4 text-accent-500" />
+            <h2 className="font-serif text-xl font-medium text-ink-950">
+              Pending {pending.length === 1 ? 'request' : 'requests'}
+            </h2>
+            {incomingCount > 0 && (
+              <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                {incomingCount} awaiting you
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {pending.map(match => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                onConnect={id => runAction(() => connectMatch(id))}
+                onPass={id => runAction(() => passMatch(id))}
+                disabled={pendingAction}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {conversations.length > 0 ? (
         <div className="space-y-4">
@@ -81,7 +139,7 @@ export default function ConnectionsPage() {
                       Connected
                     </span>
                     <span className="text-[11px] text-ink-400 font-mono">
-                      {convo.messages.length} {convo.messages.length === 1 ? 'message' : 'messages'}
+                      {convo.messageCount} {convo.messageCount === 1 ? 'message' : 'messages'}
                     </span>
                   </div>
                 </div>
@@ -90,26 +148,29 @@ export default function ConnectionsPage() {
           })}
         </div>
       ) : (
-        <div className="rounded-3xl border border-paper-300 bg-paper-50 p-8 sm:p-12 text-center shadow-soft max-w-lg mx-auto">
-          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-paper-200 text-ink-600 mb-5">
-            <Sparkles className="h-6 w-6" />
-          </div>
-          <h3 className="font-serif text-2xl font-medium text-ink-950 mb-2">
-            No active conversations yet
-          </h3>
-          <p className="text-sm text-ink-600 leading-relaxed mb-6">
-            When you discover someone who shares your curiosities and choose to connect, your private conversation will open here.
-          </p>
+        pending.length === 0 && (
+          <div className="rounded-3xl border border-paper-300 bg-paper-50 p-8 sm:p-12 text-center shadow-soft max-w-lg mx-auto">
+            <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-paper-200 text-ink-600 mb-5">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <h3 className="font-serif text-2xl font-medium text-ink-950 mb-2">
+              No active conversations yet
+            </h3>
+            <p className="text-sm text-ink-600 leading-relaxed mb-6">
+              When you discover someone who shares your curiosities and you both choose to connect,
+              your private conversation will open here.
+            </p>
 
-          <Link
-            href="/discover"
-            className="inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-3 text-sm font-medium text-paper-50 shadow-soft hover:bg-ink-800 transition-all"
-          >
-            <Compass className="h-4 w-4" />
-            <span>Discover Curated Minds</span>
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+            <Link
+              href="/discover"
+              className="inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-3 text-sm font-medium text-paper-50 shadow-soft hover:bg-ink-800 transition-all"
+            >
+              <Compass className="h-4 w-4" />
+              <span>Discover Curated Minds</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )
       )}
     </div>
   );

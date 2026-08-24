@@ -3,29 +3,7 @@
  * Run: node scripts/verify-supabase.mjs
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const envPath = resolve(__dirname, '../.env.local');
-
-function loadEnv() {
-  if (!existsSync(envPath)) {
-    console.error('❌ .env.local not found. Copy from .env.example first.');
-    process.exit(1);
-  }
-
-  const env = {};
-  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    env[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
-  }
-  return env;
-}
+import { loadEnv } from './lib/env.mjs';
 
 const env = loadEnv();
 const url = env.NEXT_PUBLIC_SUPABASE_URL;

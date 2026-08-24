@@ -79,41 +79,53 @@ graph TD
 
 ---
 
-## Phase 3: AI Matching Engine & Vector Search (Status: Planned)
+## Phase 3: AI Matching Engine & Vector Search (Status: Code complete — needs migration 005 + real API keys)
 **Goal:** Implement the hybrid matching algorithm combining vector semantic similarity, hard rules, multi-factor re-ranking, and LLM-generated resonance explanations.
 
 ### Tasks:
-- [ ] **3.1 Embedding Generation Pipeline**
-  - OpenAI `text-embedding-3-small` (1536 dimensions) or Google Gemini embedding service.
-  - Background/Server action trigger on profile creation/update to generate and store vector embedding.
-- [ ] **3.2 Candidate Retrieval (`pgvector`)**
-  - Supabase RPC function `find_candidate_profiles` querying cosine distance `<=>`.
-  - Hard filtering: age checks, active visibility (`discoverable`), exclude passed/blocked/connected profiles.
-- [ ] **3.3 Hybrid Re-Ranking Algorithm (`lib/matching/reranker.ts`)**
-  - Calculate combined resonance score:
-    $$S = 0.55 \cdot S_{\text{semantic}} + 0.15 \cdot S_{\text{style}} + 0.15 \cdot S_{\text{complementary}} + 0.10 \cdot S_{\text{timezone}} + 0.05 \cdot S_{\text{freshness}}$$
-- [ ] **3.4 Qualitative Resonance & Icebreaker Synthesizer (`lib/matching/synthesizer.ts`)**
-  - Structured LLM prompt generating:
-    1. One-sentence resonance summary (e.g., *"You both return to making things, escaping shallow conversations..."*)
-    2. One thoughtful first-conversation starter question.
-  - Store generated explanations in `matches` table to prevent re-querying on each page load.
+- [x] **3.1 Embedding Generation Pipeline** (`lib/matching/embeddings.ts`)
+  - Gemini `gemini-embedding-001` at `outputDimensionality: 1536` (free tier) by default; OpenAI
+    `text-embedding-3-small` when only that key is set. Raw `fetch`, no SDK dependency either way.
+  - Generated in `/api/profile` on create/update, only when the curiosity text changed. Non-fatal:
+    a failure stores `null` rather than failing the save. `npm run backfill:embeddings` repairs them.
+- [x] **3.2 Candidate Retrieval (`pgvector`)**
+  - `match_candidate_profiles` RPC (cosine distance `<=>`, `SECURITY DEFINER`), extended in
+    migration 005 to return `iana_timezone`, `is_demo` and `created_at`.
+  - Hard filtering: discoverable only, self excluded, anyone with an existing match row in either
+    direction excluded, blocks excluded in both directions.
+- [x] **3.3 Hybrid Re-Ranking Algorithm (`lib/matching/reranker.ts`)**
+  - $$S = 0.55 \cdot S_{\text{semantic}} + 0.15 \cdot S_{\text{style}} + 0.15 \cdot S_{\text{complementary}} + 0.10 \cdot S_{\text{timezone}} + 0.05 \cdot S_{\text{freshness}}$$
+  - Semantic is real cosine similarity when embeddings are available; the keyword-overlap proxy
+    remains only as the local-demo-mode fallback. Freshness is profile recency.
+- [x] **3.4 Qualitative Resonance & Icebreaker Synthesizer (`lib/matching/synthesizer.ts`)**
+  - Now actually reached (it had no callers before). Written once into `matches` at creation and
+    never regenerated on render.
 
 ---
 
-## Phase 4: Mutual Connections & Real-time Chat (Status: Planned)
+## Phase 4: Mutual Connections & Real-time Chat (Status: Mostly delivered alongside Phase 3)
 **Goal:** Safe, consent-driven mutual connections and real-time private messaging.
 
+4.1 and 4.2 were pulled forward: a consent handshake needs a match row two sessions can share, which
+is the same groundwork Phase 3 required, and leaving messages in `localStorage` beside a real
+`conversations` row would have been incoherent.
+
 ### Tasks:
-- [ ] **4.1 Connection Request State Machine**
-  - Handle `suggested` -> `requested` -> `connected` / `passed` states.
-  - Notify recipient of incoming connection request (without revealing full raw profile until accepted).
-- [ ] **4.2 Real-time Messaging (Supabase Realtime)**
-  - WebSocket subscription to `messages` for active conversation.
-  - Optimistic UI updates, delivery state, and typing indicators.
-  - Shared first question displayed as conversation header.
+- [x] **4.1 Connection Request State Machine** (`app/api/matches/[id]/route.ts`)
+  - `suggested → requested → connected / passed / unmatched`, validated server-side, invalid
+    transitions rejected with 409.
+  - Incoming requests surface on `/connections` with resonance and shared question only — the raw
+    profile stays hidden until mutual acceptance.
+- [x] **4.2 Real-time Messaging (Supabase Realtime)**
+  - `postgres_changes` subscription filtered by `conversation_id`; messages merged by id so the
+    POST response and the realtime event can't duplicate.
+  - Shared first question pinned as the conversation header.
+  - [ ] Still to do: delivery state and typing indicators.
 - [ ] **4.3 Conversation Management**
-  - Unmatch action (archives conversation and cleans match state).
-  - Block & report dialogs with reason capture.
+  - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
+  - [ ] Block & report dialogs with reason capture — the `blocks` and `reports` tables and their RLS
+        exist, but nothing writes to them. The chat overflow menu currently shows an `alert()` and
+        unmatches instead.
 
 ---
 

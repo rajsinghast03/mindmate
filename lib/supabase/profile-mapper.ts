@@ -39,9 +39,15 @@ export function profileToDbInsert(
     ianaTimezone?: string | null;
     curiosityProfile: string;
     visibility?: 'discoverable' | 'paused';
+    /**
+     * Omit to leave any existing vector untouched. Pass null to clear it —
+     * which is what callers do when the curiosity text changed but the
+     * embedding request failed, so a vector never outlives the text it describes.
+     */
+    profileEmbedding?: number[] | null;
   }
 ) {
-  return {
+  const row: Record<string, unknown> = {
     user_id: userId,
     display_name: data.displayName,
     age: data.age,
@@ -50,4 +56,10 @@ export function profileToDbInsert(
     curiosity_profile: data.curiosityProfile,
     visibility: data.visibility ?? 'discoverable',
   };
+
+  if (data.profileEmbedding !== undefined) {
+    row.profile_embedding = data.profileEmbedding;
+  }
+
+  return row;
 }

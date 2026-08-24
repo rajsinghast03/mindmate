@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { generateEmbedding } from '@/lib/matching/embeddings';
 
 async function requestBody(req: NextRequest): Promise<Record<string, unknown> | null> {
   try {
@@ -77,12 +78,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
   }
 
+  // Re-embed only when the curiosity text actually changed, so repeated saves of
+  // unrelated fields don't burn embedding calls.
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('curiosity_profile')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const textChanged =
+    !existing || existing.curiosity_profile !== profileValidation.normalizedText;
+
   const row = profileToDbInsert(user.id, {
     displayName: String(displayName).trim(),
     age: Number(age),
     cityOrTimezone: String(cityOrTimezone).trim(),
     ianaTimezone: body.ianaTimezone ? String(body.ianaTimezone) : null,
     curiosityProfile: profileValidation.normalizedText,
+    ...(textChanged
+      ? { profileEmbedding: await generateEmbedding(profileValidation.normalizedText) }
+      : {}),
   });
 
   const { data, error } = await supabase
@@ -127,6 +142,17 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
     }
     updates.curiosity_profile = profileValidation.normalizedText;
+
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('curiosity_profile')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!existing || existing.curiosity_profile !== profileValidation.normalizedText) {
+      // Null on failure rather than leaving a vector that describes the old text.
+      updates.profile_embedding = await generateEmbedding(profileValidation.normalizedText);
+    }
   }
   if (body.visibility !== undefined) updates.visibility = body.visibility;
 

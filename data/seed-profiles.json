@@ -1,0 +1,109 @@
+{
+  "prompt": "Create a short, privacy-safe Curiosity Profile I can use to meet like-minded people. Use only information I explicitly choose to share. Do not include names, employer, exact location, health, money, relationship history, or other identifying details.\n\nWrite in first person, 90–130 words. Include: what I keep thinking about, what I want to explore or make, the kind of conversations or experiences I enjoy, and what I hope to find in other people. Make it warm, specific, and human—not like a résumé.",
+  "inspirations": [
+    {
+      "title": "The Slow Software Crafter & Typography Geek",
+      "author": "Kabir",
+      "age": 29,
+      "city": "Bengaluru, India",
+      "text": "I keep returning to the tension between digital hyper-efficiency and tactile human craft. In the evenings, I bind small hardcover notebooks by hand with handmade paper and wonder how personal computing lost its intimacy. I want to build quiet, small software tools designed to last twenty years rather than monetize attention. I love conversations that wander without rush—over south Indian filter coffee, discussing why physical print feels grounding, how architecture shapes mood, or sharing unfinished essays. Seeking curious minds who treat ordinary ideas seriously and make things for the quiet joy of making.",
+      "keyTopics": [
+        "Bookbinding",
+        "Calm Software",
+        "Handmade Paper",
+        "Slow Living"
+      ]
+    },
+    {
+      "title": "The Acoustic Archivist & Sound Storyteller",
+      "author": "Ananya",
+      "age": 26,
+      "city": "Mumbai, India",
+      "text": "My thoughts are occupied by the hidden soundscapes of coastal cities and how spatial acoustics alter memory. I recently started dawn field recording walks along Marine Drive and Sassoon Docks, capturing how ambient city noise blends with sea breeze and morning ragas. I want to collaborate on immersive audio essays or experimental listening sessions. I treasure unhurried chai conversations dissecting why specific melodies trigger physical nostalgia or how Indian cities would feel if acoustic peace was prioritized. Looking for companions who notice the subtle auditory details most people scroll past.",
+      "keyTopics": [
+        "Field Recording",
+        "Acoustic Ecology",
+        "Hindustani Classical",
+        "Sound Design"
+      ]
+    },
+    {
+      "title": "The Stepwell Explorer & Micro-Historian",
+      "author": "Arjun",
+      "age": 33,
+      "city": "Delhi, India",
+      "text": "I obsess over the invisible historical layers of cities: forgotten medieval stepwells (baolis), vernacular brick typography, and heritage chai stalls that survived centuries of urban sprawl. I’m currently mapping subterranean water structures and writing short essays on Delhi’s architectural resilience. I crave discussions that jump between sociology, medieval hydrology, and favorite old bookstore discoveries in Daryaganj. I value people who enjoy long walking explorations through labyrinthine lanes just to observe forgotten stone carvings and talk about how communities carve out belonging.",
+      "keyTopics": [
+        "Stepwells & Baolis",
+        "Urban Micro-History",
+        "Daryaganj Books",
+        "Heritage Walks"
+      ]
+    },
+    {
+      "title": "The Cognitive Science & Board Game Designer",
+      "author": "Meera",
+      "age": 28,
+      "city": "Pune, India",
+      "text": "I’m fascinated by how structured constraints breed deep empathy and playfulness. By day I study how mental models form; by night I prototype cooperative tabletop games where players succeed through shared deduction and emotional nuance rather than resource competition. I love discussing why we tell folktales, the philosophy of mathematics, and the strange satisfaction of mechanical watch movements. I’m seeking collaborators and thoughtful friends who enjoy dissecting complex systems with warm humor, playful optimism, and intellectual honesty.",
+      "keyTopics": [
+        "Game Mechanics",
+        "Cognitive Framing",
+        "Mental Models",
+        "Playful Systems"
+      ]
+    },
+    {
+      "title": "The Agroforestry Ecologist & Natural Builder",
+      "author": "Siddharth",
+      "age": 31,
+      "city": "Kochi, India",
+      "text": "I spend my seasons exploring the biodiverse canopies of the Western Ghats and thinking about non-hierarchical cooperation in fungal networks. I’m currently experimenting with indigenous bamboo joinery and mycelium insulation while reading speculative solarpunk fiction. I enjoy relaxed evening tea walks, trading fermentation recipes, and talking through how Indian communities can adapt sustainably to ecological shifts without despair. Hoping to connect with gentle, action-oriented thinkers who love learning by getting their hands dirty with earth and ideas.",
+      "keyTopics": [
+        "Western Ghats Ecology",
+        "Solarpunk",
+        "Fermentation",
+        "Regenerative Living"
+      ]
+    },
+    {
+      "title": "The 35mm Film Archivist & Visual Poet",
+      "author": "Rhea",
+      "age": 27,
+      "city": "Kolkata, India",
+      "text": "I’m preoccupied with the texture of impermanence and why physical film negatives retain emotional weight that digital files lack. I spend weekends restoring discarded 1970s slide carousels and medium-format film found in old flea markets. I want to curate a communal archive of anonymous family memories. I cherish late-night discussions over black coffee about Satyajit Ray’s visual pacing, Indian modernist poetry, and the ethics of remembering. Looking for someone who appreciates slow art and isn’t afraid of contemplative silences in conversation.",
+      "keyTopics": [
+        "Archival Film",
+        "Memory Preservation",
+        "Visual Poetry",
+        "Slow Cinema"
+      ]
+    },
+    {
+      "title": "The Computational Linguist & Etymology Explorer",
+      "author": "Advait",
+      "age": 30,
+      "city": "Hyderabad, India",
+      "text": "I wonder where syntax ends and consciousness begins. I work on natural language translation while constantly hunting for untranslatable words in Urdu, Sanskrit, and regional dialects that capture hyper-specific emotional states. I’m writing short prose exploring how digital hyperconnectivity reshapes human intimacy. I love spontaneous museum visits, debating whether metaphors form the basis of all cognition, and sharing obscure poetry collections over Irani chai. Seeking companions who value linguistic precision and emotional depth.",
+      "keyTopics": [
+        "Linguistics",
+        "Urdu & Sanskrit Etymology",
+        "Metaphor Theory",
+        "Philosophy of Mind"
+      ]
+    },
+    {
+      "title": "The DIY Astronomer & Open Hardware Hacker",
+      "author": "Tara",
+      "age": 34,
+      "city": "Jaipur, India",
+      "text": "My mind is always tilted toward the night sky. I recently built a motorized star tracker using 3D-printed gears and an old microcontroller to photograph deep-sky nebulae during weekend trips to the Thar desert. I love deep dives into orbital mechanics, open-source hardware, and the profound grounding of feeling tiny under the cosmos. I love conversing with people who retain childlike wonder about the universe and enjoy building things with their own hands from first principles.",
+      "keyTopics": [
+        "Astrophotography",
+        "Open Hardware",
+        "Cosmology",
+        "Stargazing"
+      ]
+    }
+  ]
+}

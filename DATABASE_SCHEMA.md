@@ -30,6 +30,7 @@ erDiagram
         text iana_timezone "Derived IANA timezone, e.g. 'Asia/Kolkata'"
         text curiosity_profile
         vector profile_embedding
+        bool is_demo "Seeded persona; auto-accepts requests (migration 005)"
         string visibility
         timestamp created_at
         timestamp updated_at
@@ -208,6 +209,13 @@ $$;
 
 ---
 
+> **Migration 005 supersedes the RPC above.** It is dropped and recreated returning
+> `iana_timezone`, `is_demo` and `created_at` as well — the re-ranker needs the timezone for its
+> practicality factor and `created_at` for freshness. Changing a function's `RETURNS TABLE`
+> requires `DROP FUNCTION`; `CREATE OR REPLACE` cannot alter a result type.
+
+---
+
 ## 4. Row-Level Security (RLS) Policies
 
 ```sql
@@ -249,3 +257,27 @@ USING (
     )
 );
 ```
+
+---
+
+## 5. Consent Enforcement — two policy defects fixed in migration 005
+
+Both of the following shipped in `001` and both defeat the mutual-consent invariant. They are
+corrected in `005_phase3_matching.sql`; do not reintroduce either shape.
+
+**`matches` UPDATE was self-grantable.** The policy had a `USING` clause and no `WITH CHECK`.
+Postgres reuses `USING` as the check on UPDATE when `WITH CHECK` is omitted, and `USING` only
+verified that the caller was *a party to the match* — not what they were changing it to. Either
+person could therefore set `status = 'connected'` unilaterally, and because the `messages` policy
+keys off exactly that value, that unlocked messaging someone who had never accepted. The policy is
+dropped outright: `matches.status` is now written only by
+`app/api/matches/[id]/route.ts` on the service role, which validates each transition.
+
+**`messages` never checked the sender.** The policy confirmed conversation membership but never
+that `sender_profile_id` belonged to the caller, so a member could insert a message attributed to
+the other participant. `005` adds a `WITH CHECK` requiring `sender_profile_id` to resolve to
+`auth.uid()`.
+
+The messages policy remains the database-level consent gate: because it requires
+`m.status = 'connected'`, an unmatched or merely-requested match cannot carry messages even if a
+route handler were wrong.

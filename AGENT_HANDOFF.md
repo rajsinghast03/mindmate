@@ -9,9 +9,9 @@
 
 - **Project Name:** Mindmate
 - **Core Concept:** An intellectual, curiosity-first connection platform where people meet through shared questions, curiosities, and ideas—not shallow bios, photos, or swipe feeds.
-- **Tech Stack:** Next.js 15 (App Router, TypeScript), Tailwind CSS, Supabase (PostgreSQL + `pgvector` + Auth + Realtime), OpenAI API (with fallback mock synthesizer).
+- **Tech Stack:** Next.js 15 (App Router, TypeScript), Tailwind CSS, Supabase (PostgreSQL + `pgvector` + Auth + Realtime), Google Gemini free tier for embeddings + resonance synthesis (OpenAI optional; offline fallback synthesizer).
 - **Design Aesthetic:** Calm editorial, warm paper background (`#FAF8F5`), dark ink text (`#18181B`), terracotta/coral accent (`#E05A47`), elegant serif headers (*Newsreader* / *Playfair Display*), no swipe/dating app clichés.
-- **Development Strategy:** Local Interactive Prototype first with rich seed data & in-memory matching pipeline, transitioning seamlessly to Supabase + live OpenAI.
+- **Development Strategy:** Local Interactive Prototype first with rich seed data & in-memory matching pipeline, transitioning seamlessly to Supabase + a live AI provider.
 
 ---
 
@@ -19,10 +19,18 @@
 
 | Metric | Status |
 | :--- | :--- |
-| **Current Phase** | **Phase 2: Supabase Auth & Database Layer (COMPLETED) Ready for Phase 3: AI Matching & pgvector** |
-| **Active Milestone** | Phase 2 code complete — apply migration to live Supabase instance to activate |
-| **Build Health** | Production build compiles successfully (`next build`) |
+| **Current Phase** | **Phase 3: AI Matching & pgvector (code complete, awaiting live activation)** |
+| **Active Milestone** | Activated. Browser-side consent + security verification outstanding |
+| **Build Health** | `next build` and `tsc --noEmit` both clean |
 | **Last Updated** | 2026-08-24 |
+
+> **✅ Live and activated.** Migration 005 is applied, `GEMINI_API_KEY` and `SUPABASE_SECRET_KEY`
+> are set, the 8 demo personas are seeded with embeddings, and pgvector retrieval was verified
+> returning sensible ranked candidates. Remaining verification is browser-side: the two-account
+> consent handshake and the three negative security tests in the Phase 3 plan.
+>
+> Placeholder env values are detected in `lib/config.ts` and reported explicitly rather than
+> failing as an opaque "Invalid API key".
 
 ---
 
@@ -48,7 +56,7 @@
 - [x] Created `types/index.ts` with complete domain models (`Profile`, `Match`, `Conversation`, `Message`).
 - [x] Created `data/seed-profiles.ts` with 8+ authentic, rich curiosity profiles and sample inspiration data.
 - [x] Implemented hybrid re-ranking engine in `lib/matching/reranker.ts` using the multi-factor weighted formula.
-- [x] Implemented AI qualitative resonance & starter question synthesizer in `lib/matching/synthesizer.ts` (with OpenAI support + offline fallback).
+- [x] Implemented AI qualitative resonance & starter question synthesizer in `lib/matching/synthesizer.ts` (with hosted-provider support + offline fallback).
 - [x] Implemented client state management in `context/mindmate-context.tsx` with `localStorage` persistence and simulated messaging responses.
 - [x] Built Landing Page (`app/page.tsx`) with copyable ChatGPT prompt, 3-step guide, and mock introduction card.
 - [x] Built Curiosity Profile Onboarding (`app/onboarding/paste/page.tsx` & `app/onboarding/review/page.tsx`) with live word counter, inspiration drawer, age verification, and privacy guarantees.
@@ -58,10 +66,47 @@
 - [x] Built Server API route (`app/api/match/route.ts`).
 - [x] Verified zero-error compilation with `npm run build`.
 
-### Up Next (Phase 3: AI Matching Engine & Vector Search)
-- [ ] Embedding generation pipeline (`text-embedding-3-small` on profile save).
-- [ ] Wire `match_candidate_profiles` RPC for vector retrieval.
-- [ ] Persist matches to Supabase `matches` table.
+### Completed in Phase 3 (AI Matching, Consent State Machine & Realtime Chat)
+- [x] **Embeddings** — `lib/matching/embeddings.ts`, Gemini-first with OpenAI fallback, raw fetch, no SDK.
+      `gemini-embedding-001` at `outputDimensionality: 1536` keeps the existing `VECTOR(1536)` column.
+      Generated on profile create/update in `/api/profile` only when the curiosity text changed;
+      non-fatal, so a save never fails because the provider is down. `npm run backfill:embeddings`
+      repairs null rows, and `/api/match` self-heals a missing vector on demand.
+- [x] **Real candidate retrieval** — `match_candidate_profiles` RPC now returns `iana_timezone`,
+      `is_demo` and `created_at`, and is actually called. Matching no longer touches `SEED_PROFILES`
+      in Supabase mode.
+- [x] **Re-ranker uses real signals** — the 0.55 semantic factor is now pgvector cosine similarity
+      instead of Jaccard keyword overlap (the keyword proxy remains as the local-demo-mode fallback).
+      Cosine is calibrated from its natural 0.83–0.89 band onto [0,1]: fed raw it contributed only
+      ~0.03 of score spread while the 0.15 complementary factor swung ~0.045, so the nominally
+      dominant signal was effectively constant. Calibrated it contributes ~0.128.
+      Freshness was `Math.sin(displayName.length)`, a deterministic function of name length; it is now
+      profile recency.
+- [x] **Persisted matches** — created once with LLM-synthesized resonance text and never regenerated.
+      Pair keys are canonical (smaller uuid first) so `unique_profile_pair` prevents duplicate
+      reverse rows.
+- [x] **Consent state machine** — `suggested → requested → connected`, validated server-side in
+      `app/api/matches/[id]/route.ts`. Connecting is now a *request*; the conversation opens only on
+      mutual acceptance. Seeded demo personas (`is_demo`) auto-accept so one person can still see the
+      whole flow.
+- [x] **Provider hardening** — all AI calls retry 429/503/network/timeout three times with backoff
+      and a 15s per-attempt cap (Node's fetch has no default timeout; an overloaded model hung
+      indefinitely). If synthesis still fails, `/api/match` **skips** that candidate rather than
+      persisting the offline template — resonance is written once and never regenerated, so a
+      transient blip would otherwise stick a generic explanation to a real pair permanently.
+- [x] **Realtime messaging** — messages persist to Supabase and stream over `postgres_changes`.
+      The `setTimeout` canned-reply simulation is gone from Supabase mode.
+- [x] **Two RLS holes closed** (migration 005) — see Invariant 7 below.
+- [x] **Raw-profile redaction** — `GET /api/matches` omits `curiosityProfile` until a match is
+      `connected`; `CandidateSummary` makes that structural rather than a convention.
+- [x] **Demo personas** — `npm run seed:demo` creates 8 real auth users + profiles + embeddings,
+      idempotent. Personas now live in `data/seed-profiles.json`, shared by the app and the scripts.
+
+### Up Next (Phase 4/5 remainder)
+- [ ] Typing indicators and delivery state (ROADMAP 4.2).
+- [ ] Blocks & reports UI — tables and RLS exist, nothing writes to them yet (ROADMAP 4.3 / 5.2).
+      The chat overflow menu currently `alert()`s and unmatches instead of recording a report.
+- [ ] Turnstile on the login form (ROADMAP 5.3).
 
 ### Completed in Phase 2
 - [x] SQL migration (`supabase/migrations/001_initial_schema.sql`) — profiles, matches, messages, blocks, reports, pgvector, RLS.
@@ -74,7 +119,10 @@
 - [x] **Auth email infrastructure** — custom domain `mindmate.site` verified on Resend (SPF/DKIM via CNAME forge records); Resend SMTP wired into Supabase (unlocks template editing + removes built-in 2/hr cap). Branded Magic Link template lives at `supabase/templates/magic-link.html` — re-paste into Supabase dashboard after edits. "Confirm email" disabled deliberately: with OTP-only auth the magic link itself proves inbox ownership (revisit if passwords are ever added). Auth-abuse prevention (Turnstile on login) tracked in ROADMAP 5.3.
 - [x] **Logo simplification** — coral spark dot removed from `LogoMark` SVG everywhere; serif-M-only inside ink circle. Wordmark optically aligned via `translate-y-[0.06em]`.
 
-> **Note:** Apply `supabase/migrations/003_profile_timezone.sql` to live Supabase instances that already ran `001`.
+> **Note:** Apply migrations in order. Instances that already ran `001` still need `002`–`005`.
+> `005_phase3_matching.sql` is required for Phase 3 to function at all — it adds `is_demo`,
+> rebuilds the retrieval RPC, closes the two RLS holes, and adds `messages` to the realtime
+> publication.
 
 ---
 
@@ -82,11 +130,20 @@
 
 1. **No Swipe Feeds & No Forced Labels:** Never introduce swiping or forced categorizations (e.g. "dating", "networking").
 2. **Mutual Consent Only:** Chat is locked until both parties explicitly click "I'd like to connect".
+   Enforced in three places, deliberately: the server-validated transition table, the absence of any
+   client UPDATE policy on `matches`, and the `messages` policy gated on `status = 'connected'`.
 3. **No Fake Scores:** No "92% compatibility" numbers; only human, qualitative resonance explanations.
 4. **Privacy First:** Raw Curiosity Profiles are not publicly indexed or displayed to unapproved matches. Only high-level themes and approved resonance cards are displayed.
 5. **Deterministic Re-ranking Formula:**
    $$\text{Score} = 0.55(\text{Semantic}) + 0.15(\text{ConvStyle}) + 0.15(\text{Complementary}) + 0.10(\text{Timezone}) + 0.05(\text{Freshness})$$
-6. **Graceful Fallbacks:** The app must work smoothly in local demo/mock mode with pre-seeded rich profiles, while seamlessly connecting to Supabase and OpenAI when environment keys are provided.
+6. **Graceful Fallbacks:** The app must work smoothly in local demo/mock mode with pre-seeded rich profiles, while seamlessly connecting to Supabase and a hosted AI provider when environment keys are provided.
+7. **Never Let Clients Set Match Status:** Migration 001's `matches` UPDATE policy had a `USING`
+   clause and no `WITH CHECK`. Postgres reuses `USING` as the check on UPDATE, so either party could
+   set `status = 'connected'` on themselves and unlock messaging without the other person agreeing.
+   Migration 005 drops that policy; transitions are server-only. Separately, the `messages` policy
+   never verified `sender_profile_id` belonged to the caller — a user could forge a message *from*
+   the person they were talking to. Both are now closed; do not reintroduce a client-side write path
+   to either table.
 
 ---
 

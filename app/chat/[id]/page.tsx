@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
+import { createClient } from '@/lib/supabase/client';
+import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
+import { Conversation, Message } from '@/types';
 import {
   ArrowLeft,
   Send,
@@ -27,22 +30,99 @@ export default function ChatRoomPage() {
     sendMessage,
     unmatchConversation,
     isLoaded,
+    isSupabaseMode,
   } = useMindmate();
 
   const [inputMessage, setInputMessage] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const [showUnmatchModal, setShowUnmatchModal] = useState(false);
+  const [remoteConversation, setRemoteConversation] = useState<Conversation | null>(null);
+  const [loadingRemote, setLoadingRemote] = useState(isSupabaseMode);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const conversation = conversations.find(c => c.id === conversationId);
+  const conversation = isSupabaseMode
+    ? remoteConversation
+    : conversations.find(c => c.id === conversationId);
+
+  /** Merge by id — Realtime and the POST response can both deliver the same row. */
+  const appendMessages = useCallback((incoming: Message[]) => {
+    setRemoteConversation(prev => {
+      if (!prev) return prev;
+      const seen = new Set(prev.messages.map(m => m.id));
+      const fresh = incoming.filter(m => m && !seen.has(m.id));
+      if (!fresh.length) return prev;
+
+      const messages = [...prev.messages, ...fresh].sort(
+        (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
+      );
+      return {
+        ...prev,
+        messages,
+        messageCount: messages.length,
+        lastActivityAt: messages[messages.length - 1].createdAt,
+      };
+    });
+  }, []);
+
+  // Load the thread. Membership and the connected-status gate are enforced by the
+  // messages RLS policy, so a non-member simply gets a 404 here.
+  useEffect(() => {
+    if (!isSupabaseMode || !conversationId) return;
+    let cancelled = false;
+
+    (async () => {
+      setLoadingRemote(true);
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/messages`);
+        if (!cancelled && res.ok) {
+          const { conversation: loaded } = await res.json();
+          setRemoteConversation(loaded);
+        }
+      } catch (e) {
+        console.error('Failed to load conversation:', e);
+      } finally {
+        if (!cancelled) setLoadingRemote(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabaseMode, conversationId]);
+
+  // Live delivery of the other person's messages.
+  useEffect(() => {
+    if (!isSupabaseMode || !conversationId) return;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        payload => appendMessages([dbMessageToMessage(payload.new as DbMessage)])
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isSupabaseMode, conversationId, appendMessages]);
 
   // Auto scroll to bottom on message updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages]);
 
-  if (!isLoaded) {
+  if (!isLoaded || loadingRemote) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
@@ -71,12 +151,43 @@ export default function ChatRoomPage() {
 
   const { candidateProfile, sharedQuestion, resonanceSummary, messages } = conversation;
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
+    const text = inputMessage.trim();
+    if (!text || sending) return;
 
-    sendMessage(conversationId, inputMessage.trim());
+    if (!isSupabaseMode) {
+      sendMessage(conversationId, text);
+      setInputMessage('');
+      return;
+    }
+
     setInputMessage('');
+    setSending(true);
+    setSendError(null);
+
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: text }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSendError(err.error || 'Could not send that message.');
+        setInputMessage(text);
+        return;
+      }
+
+      const { message, reply } = await res.json();
+      appendMessages([message, reply].filter(Boolean) as Message[]);
+    } catch {
+      setSendError('Could not send that message.');
+      setInputMessage(text);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -86,8 +197,12 @@ export default function ChatRoomPage() {
     }
   };
 
-  const handleUnmatch = () => {
-    unmatchConversation(conversationId);
+  const handleUnmatch = async () => {
+    try {
+      await unmatchConversation(conversationId);
+    } catch (err) {
+      console.error('Failed to unmatch:', err);
+    }
     setShowUnmatchModal(false);
     router.push('/connections');
   };
@@ -157,7 +272,7 @@ export default function ChatRoomPage() {
                 onClick={() => {
                   setShowMenu(false);
                   alert('Thank you for reporting. Our safety team will review this user.');
-                  handleUnmatch();
+                  void handleUnmatch();
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2 text-xs font-medium text-accent-600 hover:bg-accent-50 transition-colors text-left"
               >
@@ -184,7 +299,9 @@ export default function ChatRoomPage() {
             </button>
           </div>
           <p className="font-serif text-sm leading-relaxed text-ink-900 italic bg-paper-50 p-4 rounded-xl border border-paper-200">
-            &ldquo;{candidateProfile.curiosityProfile}&rdquo;
+            {candidateProfile.curiosityProfile
+              ? `“${candidateProfile.curiosityProfile}”`
+              : 'Their approved profile becomes visible once you are connected.'}
           </p>
         </div>
       )}
@@ -249,6 +366,9 @@ export default function ChatRoomPage() {
 
       {/* Message Input Box */}
       <div className="border-t border-paper-300 bg-paper-100 p-3 sm:p-4">
+        {sendError && (
+          <p className="mb-2 text-xs font-medium text-accent-600">{sendError}</p>
+        )}
         <form onSubmit={handleSend} className="flex items-end gap-2">
           <textarea
             rows={2}
@@ -260,9 +380,9 @@ export default function ChatRoomPage() {
           />
           <button
             type="submit"
-            disabled={!inputMessage.trim()}
+            disabled={!inputMessage.trim() || sending}
             className={`flex h-11 w-11 items-center justify-center rounded-2xl transition-all ${
-              inputMessage.trim()
+              inputMessage.trim() && !sending
                 ? 'bg-accent-500 text-white hover:bg-accent-600 shadow-soft active:scale-95'
                 : 'bg-paper-300 text-ink-400 cursor-not-allowed'
             }`}

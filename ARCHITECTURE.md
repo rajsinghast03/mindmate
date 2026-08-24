@@ -23,7 +23,7 @@ flowchart TD
     end
 
     subgraph AI_Services ["AI & Vector Intelligence"]
-        EmbeddingModel["Embedding Model (text-embedding-3-small)"]
+        EmbeddingModel["Embedding Model (gemini-embedding-001, 1536d)"]
         Reranker["Multi-Factor Re-Ranking Engine"]
         ExplanationLLM["Structured LLM (Match Summary & Icebreaker)"]
     end
@@ -63,8 +63,9 @@ flowchart LR
 ```
 
 ### Stage 1: Embedding Generation
-- Whenever a user saves or edits their Curiosity Profile, the text is passed to an embedding model (`text-embedding-3-small`, 1536 dimensions).
-- The vector is normalized and stored in the `profiles.profile_embedding` column.
+- Whenever a user saves or edits their Curiosity Profile, the text is passed to an embedding model — `gemini-embedding-001` at `outputDimensionality: 1536` by default, or OpenAI `text-embedding-3-small` when only that key is configured. Both are 1536 dimensions, so the column and HNSW index are provider-agnostic.
+- Gemini pre-normalizes only its full 3072-dimension output, so the app L2-normalizes before storing. The vector is written to `profiles.profile_embedding`.
+- Re-embedding happens only when the curiosity text actually changed, and a failure stores `null` rather than failing the profile save.
 
 ### Stage 2: Fast Candidate Retrieval via `pgvector`
 - An RPC function queries nearest neighbors using cosine distance (`<=>` operator):

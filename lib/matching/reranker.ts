@@ -87,6 +87,38 @@ function calculateTimezoneScore(userProfile: Profile, candidate: Profile): numbe
   return 0.8;
 }
 
+/**
+ * Raw cosine similarity between two curiosity profiles clusters tightly — measured
+ * across the seed personas it spans roughly 0.83–0.89, because they are all
+ * "thoughtful person describes their interests" prose. Fed in raw, the 0.55 semantic
+ * weight would move the final score by ~0.03 while the 0.15 complementary factor
+ * swings ~0.045, making the nominally dominant signal effectively a constant.
+ *
+ * Rescaling that band to [0,1] restores the intended weighting. The bounds are
+ * absolute rather than min/max over the pool: a genuinely unrelated profile should
+ * score 0 even if it happens to be the best of a weak batch.
+ */
+const SEMANTIC_FLOOR = 0.7;
+const SEMANTIC_CEILING = 0.95;
+
+function calibrateSemantic(cosineSimilarity: number): number {
+  const scaled = (cosineSimilarity - SEMANTIC_FLOOR) / (SEMANTIC_CEILING - SEMANTIC_FLOOR);
+  return Math.max(0, Math.min(1, scaled));
+}
+
+/**
+ * Diversity factor: newer profiles score higher so long-standing ones don't
+ * monopolise every pool. Full marks for the first week, easing to a 0.6 floor
+ * over the following three months.
+ */
+function calculateFreshnessScore(candidate: Profile): number {
+  const created = Date.parse(candidate.createdAt);
+  if (Number.isNaN(created)) return 0.8;
+
+  const ageDays = Math.max(0, (Date.now() - created) / 86_400_000);
+  return Math.max(0.6, 1 - (Math.max(0, ageDays - 7) / 90) * 0.4);
+}
+
 export type ScoredCandidate = {
   candidate: Profile;
   score: number;
@@ -97,10 +129,16 @@ export type ScoredCandidate = {
   freshnessScore: number;
 };
 
+/**
+ * @param semanticScores Cosine similarity per candidate id, from the pgvector
+ *   retrieval step. When omitted — local demo mode, which has no embeddings —
+ *   the keyword-overlap proxy below stands in for it.
+ */
 export function reRankCandidates(
   userProfile: Profile,
   candidates: Profile[],
-  passedIds: Set<string> = new Set()
+  passedIds: Set<string> = new Set(),
+  semanticScores?: Map<string, number>
 ): ScoredCandidate[] {
   const userKeywords = extractKeywords(userProfile.curiosityProfile);
 
@@ -114,8 +152,13 @@ export function reRankCandidates(
   const scored: ScoredCandidate[] = eligibleCandidates.map(candidate => {
     const candidateKeywords = extractKeywords(candidate.curiosityProfile);
     
-    // 1. Semantic curiosity overlap (0.55 weight)
-    const semanticScore = Math.min(1, calculateTopicOverlap(userKeywords, candidateKeywords) * 3.5 + 0.35);
+    // 1. Semantic curiosity overlap (0.55 weight) — real embedding cosine
+    // similarity when available, keyword overlap as the offline stand-in.
+    const providedSemantic = semanticScores?.get(candidate.id);
+    const semanticScore =
+      providedSemantic !== undefined
+        ? calibrateSemantic(providedSemantic)
+        : Math.min(1, calculateTopicOverlap(userKeywords, candidateKeywords) * 3.5 + 0.35);
 
     // 2. Conversation style similarity (0.15 weight)
     const styleScore = calculateStyleSimilarity(userProfile.curiosityProfile, candidate.curiosityProfile);
@@ -130,7 +173,7 @@ export function reRankCandidates(
     const timezoneScore = calculateTimezoneScore(userProfile, candidate);
 
     // 5. Freshness & diversity (0.05 weight)
-    const freshnessScore = 0.8 + (Math.sin(candidate.displayName.length) * 0.2);
+    const freshnessScore = calculateFreshnessScore(candidate);
 
     // Weighted Formula
     const finalScore = 
