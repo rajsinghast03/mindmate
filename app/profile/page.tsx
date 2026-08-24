@@ -24,9 +24,12 @@ export default function ProfileSettingsPage() {
     togglePauseDiscovery,
     resetAllData,
     isLoaded,
+    isSupabaseMode,
+    authUser,
   } = useMindmate();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isLoaded) {
     return (
@@ -57,10 +60,15 @@ export default function ProfileSettingsPage() {
 
   const isPaused = userProfile.visibility === 'paused';
 
-  const handleDelete = () => {
-    resetAllData();
-    setShowDeleteModal(false);
-    router.push('/');
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await resetAllData();
+      setShowDeleteModal(false);
+      router.push('/');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -163,6 +171,12 @@ export default function ProfileSettingsPage() {
             <span>Privacy Invariants Active</span>
           </div>
 
+          {isSupabaseMode && authUser && (
+            <p className="text-xs text-ink-500 pb-2">
+              Signed in as <strong>{authUser.email}</strong>
+            </p>
+          )}
+
           <div className="space-y-2.5 text-xs text-ink-600">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-sage-500 shrink-0" />
@@ -225,9 +239,10 @@ export default function ProfileSettingsPage() {
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded-full bg-red-600 px-5 py-2 text-xs font-medium text-white hover:bg-red-700"
+                disabled={isDeleting}
+                className="rounded-full bg-red-600 px-5 py-2 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-60"
               >
-                Permanently Delete
+                {isDeleting ? 'Deleting…' : 'Permanently Delete'}
               </button>
             </div>
           </div>

@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { Logo } from '@/components/logo';
-import { Sparkles, MessageSquare, User, Compass } from 'lucide-react';
+import { Sparkles, MessageSquare, User, Compass, LogOut } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { userProfile, conversations, matches } = useMindmate();
+  const { userProfile, conversations, matches, isSupabaseMode, authUser, signOut } = useMindmate();
 
   const connectedCount = conversations.length;
   const suggestedCount = matches.filter(m => m.status === 'suggested').length;
@@ -69,6 +69,17 @@ export function Navbar() {
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">{userProfile.displayName}</span>
               </Link>
+
+              {isSupabaseMode && authUser && (
+                <button
+                  onClick={() => signOut()}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-ink-500 hover:bg-paper-200/60 hover:text-ink-800 transition-all"
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign out</span>
+                </button>
+              )}
             </>
           ) : (
             <>

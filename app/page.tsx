@@ -86,16 +86,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── AI Insight Statement Bar ── */}
-      <section className="w-full bg-ink-950 py-12 px-4 sm:px-6">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="font-serif text-xl sm:text-2xl md:text-3xl text-paper-50 font-medium leading-snug italic">
-            &ldquo;Today, AI knows you better than most people do.<br className="hidden sm:inline" />
-            That&rsquo;s exactly why we use it—to find the ones who truly get you.&rdquo;
-          </p>
-          <p className="mt-4 text-sm sm:text-base text-paper-400 font-sans leading-relaxed max-w-xl mx-auto">
-            Mindmate takes the curiosity profile you&rsquo;ve already shared with AI and uses it to introduce you to people whose minds genuinely resonate with yours. No photos. No bios. Just thought.
-          </p>
+      {/* ── AI Insight Pull Quote ── */}
+      <section className="w-full py-12 px-4 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <div className="relative rounded-3xl border border-paper-300 bg-paper-50 p-8 sm:p-10 shadow-card">
+            <div className="absolute left-0 top-8 bottom-8 w-1 rounded-full bg-accent-500 sm:top-10 sm:bottom-10" />
+            <div className="pl-5 sm:pl-6 text-center">
+              <Sparkles className="mx-auto h-5 w-5 text-accent-500 mb-4" />
+              <p className="font-serif text-xl sm:text-2xl md:text-3xl text-ink-950 font-medium leading-snug italic">
+                &ldquo;Today, AI knows you better than most people do.<br className="hidden sm:inline" />
+                That&rsquo;s exactly why we use it—to find the ones who truly get you.&rdquo;
+              </p>
+              <p className="mt-4 text-sm sm:text-base text-ink-600 font-sans leading-relaxed max-w-xl mx-auto">
+                Mindmate takes the curiosity profile you&rsquo;ve already shared with AI and uses it to introduce you to people whose minds genuinely resonate with yours. No photos. No bios. Just thought.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

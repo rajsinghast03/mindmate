@@ -19,10 +19,10 @@
 
 | Metric | Status |
 | :--- | :--- |
-| **Current Phase** | **Phase 1: Working Interactive Prototype (COMPLETED) ➔ Ready for Phase 2: Supabase & Vector Search** |
-| **Active Milestone** | Phase 1 Completed & Verified (Build passes cleanly with 0 errors) |
+| **Current Phase** | **Phase 2: Supabase Auth & Database Layer (COMPLETED) ➔ Ready for Phase 3: AI Matching & pgvector** |
+| **Active Milestone** | Phase 2 code complete — apply migration to live Supabase instance to activate |
 | **Build Health** | 🟢 Production build compiles successfully (`next build`) |
-| **Last Updated** | 2026-08-23 |
+| **Last Updated** | 2026-08-24 |
 
 ---
 
@@ -58,11 +58,21 @@
 - [x] Built Server API route (`app/api/match/route.ts`).
 - [x] Verified zero-error compilation with `npm run build`.
 
-### Up Next (Phase 2: Supabase Integration & Vector Storage)
-- [ ] Connect Supabase client (`@supabase/supabase-js` / `@supabase/ssr`).
-- [ ] Apply database schema from [`DATABASE_SCHEMA.md`](file:///home/rajsinghast03/dev/mindmate/DATABASE_SCHEMA.md) to live Supabase instance with `pgvector`.
-- [ ] Implement Magic Link / Email Auth and session persistence.
-- [ ] Wire up Supabase Realtime for multi-user chat.
+### Up Next (Phase 3: AI Matching Engine & Vector Search)
+- [ ] Embedding generation pipeline (`text-embedding-3-small` on profile save).
+- [ ] Wire `match_candidate_profiles` RPC for vector retrieval.
+- [ ] Persist matches to Supabase `matches` table.
+
+### Completed in Phase 2
+- [x] SQL migration (`supabase/migrations/001_initial_schema.sql`) — profiles, matches, messages, blocks, reports, pgvector, RLS.
+- [x] Supabase client setup (`@supabase/ssr`) — browser, server, middleware.
+- [x] Magic Link auth UI (`/auth/login`, `/auth/callback`).
+- [x] Profile CRUD API (`/api/profile` — GET, POST, PATCH, DELETE).
+- [x] Context wired for Supabase mode with localStorage fallback for matches/chat.
+- [x] Onboarding auth gate — draft profile saved in sessionStorage, resume after login.
+- [x] **Location UX overhaul** — country→city cascading dropdowns (India default, 244 countries / ~4.6k cities via GeoNames-derived `data/world-cities.json`, regenerable with `scripts/generate-world-cities.mjs`). Profiles now store a clean display label (`city_or_timezone`) + structured `iana_timezone` (migration `003_profile_timezone.sql`); re-ranker computes DST-safe UTC offsets from IANA timezone with legacy `UTC±X` label parsing as fallback.
+
+> **Note:** Apply `supabase/migrations/003_profile_timezone.sql` to live Supabase instances that already ran `001`.
 
 ---
 

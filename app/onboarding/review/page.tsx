@@ -4,42 +4,73 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { LocationSelector } from '@/components/location-selector';
-import { ALL_LOCATIONS } from '@/data/world-locations';
+import {
+  DEFAULT_COUNTRY_CODE,
+  locationFromStored,
+  resolveLocationSelection,
+  type LocationSelection,
+} from '@/data/world-cities';
 import { ArrowLeft, Sparkles, ShieldCheck, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import {
+  getOnboardingDraft,
+  saveOnboardingDraft,
+  clearOnboardingDraft,
+} from '@/lib/onboarding-draft';
 
 export default function ProfileReviewPage() {
   const router = useRouter();
-  const { userProfile, saveProfile } = useMindmate();
+  const { userProfile, saveProfile, authUser, isSupabaseMode, isLoaded } = useMindmate();
 
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState<number | string>(28);
-  const [cityOrTimezone, setCityOrTimezone] = useState(ALL_LOCATIONS[0].label);
+  const [location, setLocation] = useState<LocationSelection | null>(
+    resolveLocationSelection(DEFAULT_COUNTRY_CODE, null)
+  );
   const [curiosityText, setCuriosityText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Check if there is existing state or temporary pasted text
     if (userProfile) {
       setDisplayName(userProfile.displayName);
       setAge(userProfile.age);
-      setCityOrTimezone(userProfile.cityOrTimezone);
+      setLocation(locationFromStored(userProfile.cityOrTimezone, userProfile.ianaTimezone));
       setCuriosityText(userProfile.curiosityProfile);
-    } else {
-      const temp = sessionStorage.getItem('temp_curiosity_profile');
-      if (temp) {
-        setCuriosityText(temp);
-      } else {
-        // Redirect to paste if no text exists
-        router.replace('/onboarding/paste');
-      }
+      return;
     }
-  }, [userProfile, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+    // Wait for auth session before deciding there's no draft (magic-link opens new context)
+    if (!isLoaded) return;
+
+    const draft = getOnboardingDraft();
+    if (draft?.curiosityProfile) {
+      setCuriosityText(draft.curiosityProfile);
+      if (draft.displayName) setDisplayName(draft.displayName);
+      if (draft.age) setAge(draft.age);
+      if (draft.countryCode) {
+        setLocation(resolveLocationSelection(draft.countryCode, draft.city ?? null));
+      } else if (draft.cityOrTimezone) {
+        setLocation(locationFromStored(draft.cityOrTimezone, draft.ianaTimezone));
+      }
+      return;
+    }
+
+    // Authenticated but no local draft — metadata may still have it; /auth/complete handles that
+    if (isSupabaseMode && authUser) return;
+
+    router.replace('/onboarding/paste');
+  }, [userProfile, isLoaded, isSupabaseMode, authUser, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) {
       setError('Please enter a display name or nickname.');
+      return;
+    }
+
+    if (!location) {
+      setError('Please select your country.');
       return;
     }
 
@@ -54,9 +85,38 @@ export default function ProfileReviewPage() {
       return;
     }
 
-    saveProfile(displayName.trim(), numericAge, cityOrTimezone, curiosityText.trim());
-    sessionStorage.removeItem('temp_curiosity_profile');
-    router.push('/discover');
+    if (isSupabaseMode && !authUser) {
+      saveOnboardingDraft({
+        curiosityProfile: curiosityText.trim(),
+        displayName: displayName.trim(),
+        age: numericAge,
+        cityOrTimezone: location.label,
+        ianaTimezone: location.ianaTimezone,
+        countryCode: location.countryCode,
+        city: location.city,
+      });
+      router.push('/auth/login?next=/auth/complete');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await saveProfile(
+        displayName.trim(),
+        numericAge,
+        location.label,
+        curiosityText.trim(),
+        location.ianaTimezone
+      );
+      clearOnboardingDraft();
+      router.push('/discover');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -141,12 +201,9 @@ export default function ProfileReviewPage() {
             </div>
           </div>
 
-          {/* Location & Timezone Selector */}
+          {/* Location Selector */}
           <div>
-            <LocationSelector
-              value={cityOrTimezone}
-              onChange={setCityOrTimezone}
-            />
+            <LocationSelector value={location} onChange={setLocation} />
           </div>
         </div>
 
@@ -185,10 +242,11 @@ export default function ProfileReviewPage() {
         <div className="pt-2">
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2.5 rounded-full bg-accent-500 px-8 py-4 text-base font-medium text-white shadow-soft transition-all hover:bg-accent-600 hover:shadow-lifted active:scale-95"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-2.5 rounded-full bg-accent-500 px-8 py-4 text-base font-medium text-white shadow-soft transition-all hover:bg-accent-600 hover:shadow-lifted active:scale-95 disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4 text-accent-200" />
-            <span>Explore Resonant Minds</span>
+            <span>{isSubmitting ? 'Saving…' : 'Explore Resonant Minds'}</span>
           </button>
         </div>
       </form>

@@ -6,20 +6,24 @@ import { useMindmate } from '@/context/mindmate-context';
 import { PromptBox } from '@/components/prompt-box';
 import { InspirationDrawer } from '@/components/inspiration-drawer';
 import { ArrowRight, AlertCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { getOnboardingDraft, saveOnboardingDraft } from '@/lib/onboarding-draft';
 
 export default function PasteProfilePage() {
   const router = useRouter();
   const { userProfile } = useMindmate();
   const [profileText, setProfileText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [promptOpen, setPromptOpen] = useState(true);
+  const [promptOpen, setPromptOpen] = useState(false);
 
-  // Initialize with existing profile text if already created
   useEffect(() => {
     if (userProfile?.curiosityProfile) {
       setProfileText(userProfile.curiosityProfile);
-      // If they already have text, collapse the prompt box since they don't need it
       setPromptOpen(false);
+      return;
+    }
+    const draft = getOnboardingDraft();
+    if (draft?.curiosityProfile) {
+      setProfileText(draft.curiosityProfile);
     }
   }, [userProfile]);
 
@@ -37,13 +41,8 @@ export default function PasteProfilePage() {
       return;
     }
 
-    try {
-      sessionStorage.setItem('temp_curiosity_profile', profileText);
-      router.push('/onboarding/review');
-    } catch (err) {
-      console.error(err);
-      router.push('/onboarding/review');
-    }
+    saveOnboardingDraft({ curiosityProfile: profileText });
+    router.push('/onboarding/review');
   };
 
   const handleSelectSample = (sampleText: string) => {

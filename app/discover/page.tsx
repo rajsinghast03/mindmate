@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { MatchCard } from '@/components/match-card';
 import { LogoMark } from '@/components/logo';
 import { Sparkles, MessageSquare, RefreshCw, Compass, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const {
     userProfile,
     matches,
@@ -15,12 +17,22 @@ export default function DiscoverPage() {
     passProfile,
     refreshCandidates,
     isLoaded,
+    authUser,
+    isSupabaseMode,
   } = useMindmate();
 
   const [connectedToast, setConnectedToast] = useState<{
     displayName: string;
     question: string;
   } | null>(null);
+
+  // Resume onboarding if magic link landed on discover with a saved draft
+  useEffect(() => {
+    if (!isLoaded || userProfile) return;
+    if (isSupabaseMode && authUser) {
+      router.replace('/auth/complete');
+    }
+  }, [isLoaded, userProfile, isSupabaseMode, authUser, router]);
 
   if (!isLoaded) {
     return (

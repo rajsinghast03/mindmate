@@ -47,9 +47,40 @@ To maintain complete continuity across engineering sessions and agent context wi
 # 1. Install dependencies
 npm install
 
-# 2. Run local development server
+# 2. Copy environment template (optional — app runs in local demo mode without Supabase)
+cp .env.example .env.local
+
+# 3. Run local development server
 npm run dev
 
-# 3. Open application
+# 4. Open application
 # http://localhost:3000
 ```
+
+### Local Demo Mode (no Supabase)
+
+Without Supabase env vars, the app works fully offline using `localStorage` and seed profiles — same as Phase 1.
+
+### Supabase Setup (Phase 2 — Auth & Profiles)
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Run the migration in **SQL Editor**: paste contents of `supabase/migrations/001_initial_schema.sql`.
+3. Enable **Email** auth under Authentication → Providers (Magic Link).
+4. Add redirect URLs under Authentication → URL Configuration (add every origin you use):
+   - `http://localhost:3000/auth/callback`
+   - `http://YOUR_LAN_IP:3000/auth/callback` (for phone on same Wi‑Fi)
+   - Site URL: whichever origin you use most (e.g. `http://localhost:3000`)
+5. Copy credentials into `.env.local`:
+
+   **Project URL** — open **Connect** (top of dashboard), or go to **Settings → Data API**.
+
+   **Client key** — go to **Settings → API Keys**:
+   - Use the **Publishable key** (`sb_publishable_...`) — recommended
+   - Or the **anon** key under the **Legacy API Keys** tab — still works
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
+
+6. Verify: `npm run verify:supabase` then restart `npm run dev`.

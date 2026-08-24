@@ -10,6 +10,8 @@ export type Profile = {
   displayName: string;
   age: number;
   cityOrTimezone: string;
+  /** IANA timezone derived from the selected city/country, e.g. "Asia/Kolkata". */
+  ianaTimezone?: string | null;
   curiosityProfile: string;
   profileEmbedding?: number[] | null;
   visibility: 'discoverable' | 'paused';

@@ -26,7 +26,8 @@ erDiagram
         uuid user_id FK
         string display_name
         int age
-        string city_or_timezone
+        string city_or_timezone "Display label, e.g. 'Bengaluru, India'"
+        text iana_timezone "Derived IANA timezone, e.g. 'Asia/Kolkata'"
         text curiosity_profile
         vector profile_embedding
         string visibility
@@ -78,7 +79,8 @@ CREATE TABLE public.profiles (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
     display_name VARCHAR(60) NOT NULL,
     age SMALLINT NOT NULL CHECK (age >= 18),
-    city_or_timezone VARCHAR(100) NOT NULL,
+    city_or_timezone VARCHAR(100) NOT NULL, -- display label, e.g. "Bengaluru, India"
+    iana_timezone TEXT,                     -- derived IANA timezone, e.g. "Asia/Kolkata" (migration 003)
     curiosity_profile TEXT NOT NULL CHECK (char_length(curiosity_profile) >= 50),
     profile_embedding VECTOR(1536), -- Compatible with text-embedding-3-small
     visibility VARCHAR(20) NOT NULL DEFAULT 'discoverable' CHECK (visibility IN ('discoverable', 'paused')),

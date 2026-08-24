@@ -1,4 +1,5 @@
 import { Profile } from '@/types';
+import { getUtcOffsetHours } from '@/data/world-cities';
 
 // Simple text tokenization for semantic & topic overlap in local mode
 function extractKeywords(text: string): Set<string> {
@@ -37,7 +38,7 @@ function calculateStyleSimilarity(textA: string, textB: string): number {
   return Math.max(0.3, 1 - diff / 150);
 }
 
-// Helper to extract UTC offset in hours from string like 'UTC+5:30' or 'UTC-8'
+// Helper to extract UTC offset in hours from legacy labels like 'UTC+5:30' or 'UTC-8'
 function parseUtcOffset(loc: string): number | null {
   if (!loc) return null;
   if (loc.toLowerCase().includes('async') || loc.toLowerCase().includes('global')) return null;
@@ -51,20 +52,24 @@ function parseUtcOffset(loc: string): number | null {
   return sign * (hours + minutes);
 }
 
-// Timezone compatibility heuristic (1.0 for close timezones, 0.9 for async/global)
-function calculateTimezoneScore(locA: string, locB: string): number {
-  if (!locA || !locB) return 0.8;
-  const cleanA = locA.toLowerCase();
-  const cleanB = locB.toLowerCase();
-  if (cleanA === cleanB) return 1.0;
-
-  // If either user is an async/global thinker
-  if (cleanA.includes('async') || cleanB.includes('async') || cleanA.includes('global') || cleanB.includes('global')) {
-    return 0.95;
+// Resolve a profile's current UTC offset: structured IANA timezone first (DST-safe),
+// then fall back to parsing legacy "UTC±X" labels.
+function profileUtcOffset(profile: Profile): number | null {
+  if (profile.ianaTimezone) {
+    const offset = getUtcOffsetHours(profile.ianaTimezone);
+    if (offset !== null) return offset;
   }
+  return parseUtcOffset(profile.cityOrTimezone);
+}
 
-  const offsetA = parseUtcOffset(locA);
-  const offsetB = parseUtcOffset(locB);
+const isAsyncThinker = (profile: Profile) =>
+  /async|global/i.test(profile.cityOrTimezone);
+
+function calculateTimezoneScore(userProfile: Profile, candidate: Profile): number {
+  if (isAsyncThinker(userProfile) || isAsyncThinker(candidate)) return 0.95;
+
+  const offsetA = profileUtcOffset(userProfile);
+  const offsetB = profileUtcOffset(candidate);
 
   if (offsetA !== null && offsetB !== null) {
     const diff = Math.abs(offsetA - offsetB);
@@ -75,8 +80,8 @@ function calculateTimezoneScore(locA: string, locB: string): number {
   }
 
   // Fallback: Check if timezone acronym matches (e.g. GMT, EST, PST, CET, IST)
-  const tzMatchA = locA.match(/\b([A-Z]{3,4})\b/);
-  const tzMatchB = locB.match(/\b([A-Z]{3,4})\b/);
+  const tzMatchA = userProfile.cityOrTimezone.match(/\b([A-Z]{3,4})\b/);
+  const tzMatchB = candidate.cityOrTimezone.match(/\b([A-Z]{3,4})\b/);
   if (tzMatchA && tzMatchB && tzMatchA[1] === tzMatchB[1]) return 0.95;
 
   return 0.8;
@@ -122,7 +127,7 @@ export function reRankCandidates(
     const complementaryScore = tagOverlap;
 
     // 4. Timezone practicality (0.10 weight)
-    const timezoneScore = calculateTimezoneScore(userProfile.cityOrTimezone, candidate.cityOrTimezone);
+    const timezoneScore = calculateTimezoneScore(userProfile, candidate);
 
     // 5. Freshness & diversity (0.05 weight)
     const freshnessScore = 0.8 + (Math.sin(candidate.displayName.length) * 0.2);

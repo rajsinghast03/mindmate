@@ -66,23 +66,16 @@ graph TD
 
 ---
 
-## 📌 Phase 2: Supabase Auth & Database Layer (Status: Planned)
+## 📌 Phase 2: Supabase Auth & Database Layer (Status: Completed)
 **Goal:** Transition from local prototype state to persistent cloud storage with Supabase Authentication and PostgreSQL.
 
 ### Tasks:
-- [ ] **2.1 Database Migrations (`supabase/migrations/`)**
-  - Create tables: `users`, `profiles`, `matches`, `conversations`, `messages`, `blocks`, `reports`.
-  - Enable `pgvector` extension.
-  - Setup Row Level Security (RLS) policies for privacy isolation.
-  - Add update triggers for `updated_at` timestamps.
-- [ ] **2.2 Supabase Client Configuration**
-  - `@supabase/ssr` client setup for Server Components, Route Handlers, and Client Components.
-  - Middleware for session protection and auth redirects.
-- [ ] **2.3 Authentication UI & Flow**
-  - Magic Link email authentication or OAuth (Google/GitHub).
-  - Seamless onboarding resume (if user pastes profile before signing in, persist draft in session and attach upon auth).
-- [ ] **2.4 Profile CRUD API**
-  - Server actions / Route handlers to create, read, update, pause, and delete profiles.
+- [x] **2.1 Database Migrations (`supabase/migrations/`)**
+- [x] **2.2 Supabase Client Configuration**
+- [x] **2.3 Authentication UI & Flow**
+- [x] **2.4 Profile CRUD API**
+
+> **Note:** Apply `supabase/migrations/001_initial_schema.sql` to your Supabase project to activate. Without env vars, the app continues in local demo mode.
 
 ---
 
