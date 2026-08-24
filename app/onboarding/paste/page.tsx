@@ -7,6 +7,11 @@ import { PromptBox } from '@/components/prompt-box';
 import { InspirationDrawer } from '@/components/inspiration-drawer';
 import { ArrowRight, AlertCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { getOnboardingDraft, saveOnboardingDraft } from '@/lib/onboarding-draft';
+import {
+  CURIOSITY_PROFILE_MAX_WORDS,
+  CURIOSITY_PROFILE_MIN_WORDS,
+  validateCuriosityProfile,
+} from '@/lib/validation/curiosity-profile';
 
 export default function PasteProfilePage() {
   const router = useRouter();
@@ -27,21 +32,19 @@ export default function PasteProfilePage() {
     }
   }, [userProfile]);
 
-  // Word count calculation
-  const words = profileText
-    .trim()
-    .split(/\s+/)
-    .filter(w => w.length > 0);
-  const wordCount = profileText.trim() === '' ? 0 : words.length;
+  const profileValidation = validateCuriosityProfile(profileText);
+  const { wordCount } = profileValidation;
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
-    if (wordCount < 30) {
-      setError('Please provide at least 30–40 words so we can understand your curiosities.');
+    // Keep an invalid draft only in the browser so it can be revised.
+    saveOnboardingDraft({ curiosityProfile: profileText });
+    if (!profileValidation.valid) {
+      setError(profileValidation.errors[0]);
       return;
     }
 
-    saveOnboardingDraft({ curiosityProfile: profileText });
+    saveOnboardingDraft({ curiosityProfile: profileValidation.normalizedText });
     router.push('/onboarding/review');
   };
 
@@ -112,16 +115,16 @@ export default function PasteProfilePage() {
             <div className="flex items-center gap-2 text-xs font-mono">
               <span
                 className={`font-medium ${
-                  wordCount >= 70 && wordCount <= 160
+                  profileValidation.valid
                     ? 'text-sage-500 font-semibold'
-                    : wordCount < 40
+                    : wordCount < CURIOSITY_PROFILE_MIN_WORDS
                     ? 'text-ink-400'
                     : 'text-accent-600'
                 }`}
               >
                 {wordCount} words
               </span>
-              <span className="text-ink-400">(Ideal: 90–130 words)</span>
+              <span className="text-ink-400">(Ideal: 90–130 words; max {CURIOSITY_PROFILE_MAX_WORDS})</span>
             </div>
           </div>
 
@@ -149,9 +152,9 @@ export default function PasteProfilePage() {
         <div className="flex items-center justify-end">
           <button
             type="submit"
-            disabled={wordCount < 10}
+            disabled={wordCount === 0}
             className={`flex items-center justify-center gap-2 rounded-full px-8 py-3.5 text-sm font-medium transition-all shadow-soft ${
-              wordCount >= 10
+              wordCount > 0
                 ? 'bg-ink-950 text-paper-50 hover:bg-ink-800 active:scale-95'
                 : 'bg-paper-300 text-ink-400 cursor-not-allowed'
             }`}

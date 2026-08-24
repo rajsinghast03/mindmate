@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured, getSupabaseUrl, getSupabasePublishableKey } from '@/lib/config';
+import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
 function getServiceClient() {
   const url = getSupabaseUrl()!;
@@ -21,17 +22,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
   }
 
-  const body = await req.json();
+  let body: { email?: unknown; draft?: { curiosityProfile?: unknown } };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
+  }
   const { email, draft } = body;
 
   if (!email || !draft?.curiosityProfile) {
     return NextResponse.json({ error: 'email and draft required' }, { status: 400 });
   }
 
+  const profileValidation = validateCuriosityProfile(draft.curiosityProfile);
+  if (!profileValidation.valid) {
+    return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
+  }
+
   const supabase = getServiceClient();
   const { error } = await supabase.from('onboarding_drafts').upsert({
     email: String(email).trim().toLowerCase(),
-    draft,
+    draft: { ...draft, curiosityProfile: profileValidation.normalizedText },
     updated_at: new Date().toISOString(),
   });
 

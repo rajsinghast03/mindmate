@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
 import { isSupabaseConfigured } from '@/lib/config';
+import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+
+async function requestBody(req: NextRequest): Promise<Record<string, unknown> | null> {
+  try {
+    const body: unknown = await req.json();
+    return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -50,7 +60,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await requestBody(req);
+  if (!body) return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   const { displayName, age, cityOrTimezone, curiosityProfile } = body;
 
   if (!displayName || !age || !cityOrTimezone || !curiosityProfile) {
@@ -61,8 +72,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Must be 18 or older' }, { status: 400 });
   }
 
-  if (curiosityProfile.length < 50) {
-    return NextResponse.json({ error: 'Curiosity profile too short' }, { status: 400 });
+  const profileValidation = validateCuriosityProfile(curiosityProfile);
+  if (!profileValidation.valid) {
+    return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
   }
 
   const row = profileToDbInsert(user.id, {
@@ -70,7 +82,7 @@ export async function POST(req: NextRequest) {
     age: Number(age),
     cityOrTimezone: String(cityOrTimezone).trim(),
     ianaTimezone: body.ianaTimezone ? String(body.ianaTimezone) : null,
-    curiosityProfile: String(curiosityProfile).trim(),
+    curiosityProfile: profileValidation.normalizedText,
   });
 
   const { data, error } = await supabase
@@ -101,14 +113,21 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await requestBody(req);
+  if (!body) return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   const updates: Record<string, unknown> = {};
 
   if (body.displayName !== undefined) updates.display_name = String(body.displayName).trim();
   if (body.age !== undefined) updates.age = Number(body.age);
   if (body.cityOrTimezone !== undefined) updates.city_or_timezone = String(body.cityOrTimezone).trim();
   if (body.ianaTimezone !== undefined) updates.iana_timezone = body.ianaTimezone ? String(body.ianaTimezone) : null;
-  if (body.curiosityProfile !== undefined) updates.curiosity_profile = String(body.curiosityProfile).trim();
+  if (body.curiosityProfile !== undefined) {
+    const profileValidation = validateCuriosityProfile(body.curiosityProfile);
+    if (!profileValidation.valid) {
+      return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
+    }
+    updates.curiosity_profile = profileValidation.normalizedText;
+  }
   if (body.visibility !== undefined) updates.visibility = body.visibility;
 
   if (Object.keys(updates).length === 0) {

@@ -6,6 +6,7 @@ import { SEED_PROFILES } from '@/data/seed-profiles';
 import { reRankCandidates } from '@/lib/matching/reranker';
 import { generateLocalResonance } from '@/lib/matching/synthesizer';
 import { createClient } from '@/lib/supabase/client';
+import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
 const SUPABASE_MODE =
   typeof window !== 'undefined'
@@ -159,11 +160,16 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     curiosityProfile: string,
     ianaTimezone?: string | null
   ) => {
+    const profileValidation = validateCuriosityProfile(curiosityProfile);
+    if (!profileValidation.valid) {
+      throw new Error(profileValidation.errors[0]);
+    }
+
     if (SUPABASE_MODE) {
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName, age, cityOrTimezone, curiosityProfile, ianaTimezone }),
+        body: JSON.stringify({ displayName, age, cityOrTimezone, curiosityProfile: profileValidation.normalizedText, ianaTimezone }),
       });
 
       if (!res.ok) {
@@ -184,7 +190,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       age,
       cityOrTimezone,
       ianaTimezone: ianaTimezone ?? null,
-      curiosityProfile,
+      curiosityProfile: profileValidation.normalizedText,
       visibility: userProfile?.visibility || 'discoverable',
       createdAt: userProfile?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),

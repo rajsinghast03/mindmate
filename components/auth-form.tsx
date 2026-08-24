@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { setAuthNextCookie, getOnboardingDraft } from '@/lib/onboarding-draft';
 import { Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
 const AUTH_COMPLETE_PATH = '/auth/complete';
 
@@ -32,6 +33,14 @@ export function AuthForm({ nextPath = AUTH_COMPLETE_PATH }: AuthFormProps) {
       setAuthNextCookie(AUTH_COMPLETE_PATH);
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(AUTH_COMPLETE_PATH)}`;
       const draft = getOnboardingDraft();
+
+      if (draft?.curiosityProfile) {
+        const profileValidation = validateCuriosityProfile(draft.curiosityProfile);
+        if (!profileValidation.valid) {
+          throw new Error(profileValidation.errors[0]);
+        }
+        draft.curiosityProfile = profileValidation.normalizedText;
+      }
 
       if (draft?.curiosityProfile) {
         await fetch('/api/onboarding-draft', {
