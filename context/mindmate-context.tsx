@@ -230,7 +230,8 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       if (token) await supabase.realtime.setAuth(token);
       if (cancelled) return;
 
-      channel = supabase.channel(uniqueChannelName(`matches:${profileId}`));
+      channel = supabase.channel(uniqueChannelName(`mindmate:${profileId}`));
+
       for (const column of ['profile_a_id', 'profile_b_id']) {
         channel.on(
           'postgres_changes',
@@ -243,6 +244,19 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
           refetch
         );
       }
+
+      // Message inserts never touch `matches`, so without this the conversations
+      // list keeps showing a stale count and snippet until a full reload.
+      //
+      // Intentionally unfiltered: a filter can only test one column, and there is no
+      // way to express "any of my conversations" as the set changes. RLS does the
+      // scoping instead — the messages policy only exposes rows in a connected
+      // conversation this user belongs to, so nobody else's messages are delivered.
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        refetch
+      );
 
       // Realtime never replays what was missed while disconnected, so resync on every
       // (re)connect. A backgrounded tab can have its socket dropped and silently lose
