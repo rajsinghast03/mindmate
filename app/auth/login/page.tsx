@@ -32,6 +32,16 @@ export default function LoginPage() {
           <AuthLoginClient />
         </Suspense>
 
+        <p className="mt-6 text-center text-xs text-ink-600">
+          New to Mindmate?{' '}
+          <Link
+            href="/onboarding/paste"
+            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+          >
+            Create your Curiosity Profile
+          </Link>
+        </p>
+
         <div className="mt-6 flex items-start gap-2 text-xs text-ink-500 border-t border-paper-200 pt-4">
           <ShieldCheck className="h-4 w-4 text-sage-500 shrink-0 mt-0.5" />
           <span>

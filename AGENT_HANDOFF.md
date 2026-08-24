@@ -96,6 +96,12 @@
       transient blip would otherwise stick a generic explanation to a real pair permanently.
 - [x] **Realtime messaging** — messages persist to Supabase and stream over `postgres_changes`.
       The `setTimeout` canned-reply simulation is gone from Supabase mode.
+- [x] **Realtime match state** (migration 006) — 005 streamed `messages` but not `matches`, so a
+      request arriving, a request being accepted, or an unmatch only appeared on refresh. The
+      provider now subscribes to both sides of the pair (postgres_changes filters can't express
+      OR) and refetches, keeping Discover, Connections and the navbar badges in sync together.
+      `matches` is set to `REPLICA IDENTITY FULL` so a cascade-delete from account deletion still
+      reaches the counterpart. The chat screen closes the composer when the thread ends.
 - [x] **Two RLS holes closed** (migration 005) — see Invariant 7 below.
 - [x] **Raw-profile redaction** — `GET /api/matches` omits `curiosityProfile` until a match is
       `connected`; `CandidateSummary` makes that structural rather than a convention.

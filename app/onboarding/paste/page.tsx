@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
 import { PromptBox } from '@/components/prompt-box';
 import { InspirationDrawer } from '@/components/inspiration-drawer';
@@ -68,6 +69,15 @@ export default function PasteProfilePage() {
         </h1>
         <p className="mt-2 text-sm sm:text-base text-ink-600 max-w-lg mx-auto">
           Share the ideas, questions, crafts, and themes you keep returning to.
+        </p>
+        <p className="mt-3 text-xs text-ink-500">
+          Already have an account?{' '}
+          <Link
+            href="/auth/login"
+            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>
         </p>
       </div>
 

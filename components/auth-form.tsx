@@ -1,25 +1,38 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { setAuthNextCookie, getOnboardingDraft } from '@/lib/onboarding-draft';
+import { setAuthNextCookie, getOnboardingDraft, safeNextPath } from '@/lib/onboarding-draft';
 import { Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
 const AUTH_COMPLETE_PATH = '/auth/complete';
 
 interface AuthFormProps {
+  /** Where to land once /auth/complete has resolved any onboarding draft. */
   nextPath?: string;
 }
 
-export function AuthForm({ nextPath = AUTH_COMPLETE_PATH }: AuthFormProps) {
+export function AuthForm({ nextPath }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
+  /**
+   * Always route through /auth/complete — it is what resolves the onboarding
+   * draft — but carry the caller's destination with it, so being bounced from a
+   * protected page returns you there instead of always landing on /discover.
+   */
+  const completePath = useMemo(() => {
+    const safe = safeNextPath(nextPath, AUTH_COMPLETE_PATH);
+    return safe === AUTH_COMPLETE_PATH
+      ? AUTH_COMPLETE_PATH
+      : `${AUTH_COMPLETE_PATH}?next=${encodeURIComponent(safe)}`;
+  }, [nextPath]);
+
   useEffect(() => {
-    setAuthNextCookie(AUTH_COMPLETE_PATH);
-  }, []);
+    setAuthNextCookie(completePath);
+  }, [completePath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +43,8 @@ export function AuthForm({ nextPath = AUTH_COMPLETE_PATH }: AuthFormProps) {
 
     try {
       const supabase = createClient();
-      setAuthNextCookie(AUTH_COMPLETE_PATH);
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(AUTH_COMPLETE_PATH)}`;
+      setAuthNextCookie(completePath);
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(completePath)}`;
       const draft = getOnboardingDraft();
 
       if (draft?.curiosityProfile) {
@@ -50,12 +63,13 @@ export function AuthForm({ nextPath = AUTH_COMPLETE_PATH }: AuthFormProps) {
         });
       }
 
+      // Deliberately no `data: { mindmate_draft }` here. Supabase writes that into
+      // the user_metadata of whoever owns this address, so anyone could plant their
+      // draft on a stranger's account. The draft travels via localStorage and the
+      // onboarding_drafts table instead.
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: {
-          emailRedirectTo: redirectTo,
-          data: draft ? { mindmate_draft: draft } : undefined,
-        },
+        options: { emailRedirectTo: redirectTo },
       });
 
       if (error) throw error;
@@ -77,6 +91,10 @@ export function AuthForm({ nextPath = AUTH_COMPLETE_PATH }: AuthFormProps) {
         </h3>
         <p className="text-sm text-ink-600 leading-relaxed">
           We sent a magic link to <strong>{email}</strong>. Click it to sign in and continue.
+        </p>
+        <p className="mt-3 text-xs text-ink-500 leading-relaxed">
+          If that address already has a Mindmate account, the link simply signs you in and
+          your existing profile is kept.
         </p>
       </div>
     );

@@ -4,6 +4,9 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
+/** How long a pre-auth draft stays claimable. */
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
 /** Save draft before magic link (pre-auth). */
 export async function POST(req: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -57,10 +60,17 @@ export async function GET() {
   }
 
   const supabase = createServiceClient();
+
+  // Anyone can write a draft against any address, so bound how long one can sit
+  // waiting to be claimed. /auth/complete additionally never auto-saves a
+  // server-recovered draft — it routes to review for explicit approval.
+  const freshSince = new Date(Date.now() - DRAFT_TTL_MS).toISOString();
+
   const { data, error } = await supabase
     .from('onboarding_drafts')
     .select('draft')
     .eq('email', user.email.toLowerCase())
+    .gt('updated_at', freshSince)
     .maybeSingle();
 
   if (error) {

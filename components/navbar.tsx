@@ -22,7 +22,9 @@ export function Navbar() {
     <header className="sticky top-0 z-40 w-full border-b border-paper-300/80 bg-paper-100/90 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
         {/* Brand */}
-        <Logo size="sm" showWordmark={true} href="/" />
+        {/* Point straight at the app once there's a profile — middleware would
+            bounce "/" to /discover anyway, and this avoids the round-trip. */}
+        <Logo size="sm" showWordmark={true} href={userProfile ? '/discover' : '/'} />
 
         {/* Navigation */}
         <nav className="flex items-center gap-1 sm:gap-2">
@@ -92,11 +94,19 @@ export function Navbar() {
           ) : (
             <>
               <Link
+                href="/auth/login"
+                className="rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-600 transition-all hover:bg-paper-200/60 hover:text-ink-900"
+              >
+                Sign in
+              </Link>
+
+              <Link
                 href="/onboarding/paste"
                 className="flex items-center gap-1.5 rounded-full bg-ink-950 px-4 py-2 text-sm font-medium text-paper-50 transition-all hover:bg-ink-800 hover:shadow-soft"
               >
                 <Sparkles className="h-3.5 w-3.5 text-accent-400" />
-                <span>Find minds like yours</span>
+                <span className="hidden sm:inline">Find minds like yours</span>
+                <span className="sm:hidden">Get started</span>
               </Link>
             </>
           )}

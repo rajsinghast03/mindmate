@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
 import { Conversation, Message } from '@/types';
 import {
@@ -46,6 +46,14 @@ export default function ChatRoomPage() {
   const conversation = isSupabaseMode
     ? remoteConversation
     : conversations.find(c => c.id === conversationId);
+
+  // If the other person unmatches, the realtime match subscription drops this
+  // conversation from context. Only treat that as "ended" once we've actually seen
+  // it listed, so a deep link that loads before context does isn't misread as closed.
+  const seenInContext = useRef(false);
+  const listedNow = conversations.some(c => c.id === conversationId);
+  if (listedNow) seenInContext.current = true;
+  const conversationEnded = isSupabaseMode && seenInContext.current && !listedNow;
 
   /** Merge by id — Realtime and the POST response can both deliver the same row. */
   const appendMessages = useCallback((incoming: Message[]) => {
@@ -99,7 +107,7 @@ export default function ChatRoomPage() {
 
     const supabase = createClient();
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(uniqueChannelName(`messages:${conversationId}`))
       .on(
         'postgres_changes',
         {
@@ -365,6 +373,21 @@ export default function ChatRoomPage() {
       </div>
 
       {/* Message Input Box */}
+      {conversationEnded ? (
+        <div className="border-t border-paper-300 bg-paper-100 p-5 text-center">
+          <p className="font-serif text-base text-ink-950">This conversation has ended.</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-ink-500">
+            {candidateProfile.displayName} is no longer connected with you. The thread is
+            closed and no further messages can be sent.
+          </p>
+          <Link
+            href="/connections"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-ink-950 px-5 py-2.5 text-xs font-medium text-paper-50 hover:bg-ink-800 transition-colors"
+          >
+            <span>Back to conversations</span>
+          </Link>
+        </div>
+      ) : (
       <div className="border-t border-paper-300 bg-paper-100 p-3 sm:p-4">
         {sendError && (
           <p className="mb-2 text-xs font-medium text-accent-600">{sendError}</p>
@@ -391,6 +414,7 @@ export default function ChatRoomPage() {
           </button>
         </form>
       </div>
+      )}
 
       {/* Unmatch Confirmation Modal */}
       {showUnmatchModal && (

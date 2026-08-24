@@ -6,7 +6,7 @@ import { SEED_PROFILES } from '@/data/seed-profiles';
 import { reRankCandidates } from '@/lib/matching/reranker';
 import { generateLocalResonance } from '@/lib/matching/synthesizer';
 import { DEMO_REPLIES } from '@/lib/matching/demo-replies';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
@@ -186,6 +186,57 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     // every time the match list changes, or passing a card would regenerate forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, userProfile?.id, userProfile?.visibility]);
+
+  /**
+   * Live match state: a request arriving, someone accepting, someone unmatching.
+   *
+   * Lives in the provider rather than a page so Discover, Connections and the navbar
+   * badges all stay current together. RLS scopes the stream — the matches SELECT
+   * policy means only rows this user is part of are delivered.
+   */
+  useEffect(() => {
+    const profileId = userProfile?.id;
+    if (!SUPABASE_MODE || !profileId) return;
+
+    const supabase = createClient();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // Accepting a request updates the match and inserts a conversation, which can
+    // arrive as separate events — coalesce so that's one refetch, not several.
+    const refetch = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/matches');
+          if (res.ok) applyState(await res.json());
+        } catch (e) {
+          console.error('Failed to refresh match state:', e);
+        }
+      }, 150);
+    };
+
+    // postgres_changes filters can't express OR, and a match references this user
+    // through either column, so both sides of the pair need their own listener.
+    const channel = supabase.channel(uniqueChannelName(`matches:${profileId}`));
+    for (const column of ['profile_a_id', 'profile_b_id']) {
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'matches',
+          filter: `${column}=eq.${profileId}`,
+        },
+        refetch
+      );
+    }
+    channel.subscribe();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id, applyState]);
 
   // Local demo mode persists everything; Supabase mode is server-authoritative.
   useEffect(() => {

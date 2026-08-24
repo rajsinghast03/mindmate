@@ -79,7 +79,7 @@ graph TD
 
 ---
 
-## Phase 3: AI Matching Engine & Vector Search (Status: Code complete — needs migration 005 + real API keys)
+## Phase 3: AI Matching Engine & Vector Search (Status: Live)
 **Goal:** Implement the hybrid matching algorithm combining vector semantic similarity, hard rules, multi-factor re-ranking, and LLM-generated resonance explanations.
 
 ### Tasks:
@@ -103,6 +103,47 @@ graph TD
 
 ---
 
+### Deferred: weak-match gating (turn on at ~10-15 active users)
+
+Currently every retrieved candidate is shown. `SIMILARITY_THRESHOLD = 0.15` in
+`app/api/match/route.ts` filters nothing in practice — measured cosine similarity between
+two profiles with genuinely opposite worldviews is **0.78**, and well-matched pairs reach
+**0.90**. The entire usable band sits far above the gate. This is expected: both texts are
+"a person warmly describing their interests in ~100 words," and that shared register
+dominates the vector more than the topics do.
+
+The risk this creates is not a mediocre card, it is a *dishonest* one. Given an unrelated
+pair the synthesizer reliably manufactures a plausible thread — a measured example produced
+*"Discipline and Mastery: You both display a fierce dedication to disciplined creation and
+mastery…"* for a slow-software bookbinder and a day-trading gym-goer. For a product whose
+promise is explaining **why**, a confabulated why is worse than no match.
+
+Gating is deliberately deferred because it is unaffordable at current scale. Simulated over a
+48-profile pool spanning eight unrelated domains, the share of users whose best candidate
+clears 0.86 (a genuine shared thread):
+
+| users | 2 | 3 | 6 | 11 | 21 | 48 |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| hit rate | 52% | 73% | 92% | 97% | 99.5% | 100% |
+
+At two users a gate empties the product for everyone; past ~10 it costs almost nothing
+because nearly every user already has a good candidate. Best-match similarity itself only
+climbs 0.861 → 0.897 across that range — the ceiling barely moves, the *floor* is what
+improves.
+
+**When active users pass ~10-15**, implement: add a `has_genuine_overlap` boolean to the
+synthesizer's response schema, explicitly permit the model to decline, and skip candidates
+it declines. Model judgement is preferred over a raw threshold because it self-calibrates as
+the user base diversifies, and because a fixed number tuned on today's profiles will drift.
+Raise `SIMILARITY_THRESHOLD` to ~0.78 at the same time, purely to avoid spending an API call
+on hopeless pairs. The `/discover` empty state is already worded for this outcome.
+
+Caveat for whoever picks this up: 0.86 was derived from measurement in one session, not
+validated against human judgement. Once real matches exist, which cards actually felt
+genuine is better evidence than that number.
+
+---
+
 ## Phase 4: Mutual Connections & Real-time Chat (Status: Mostly delivered alongside Phase 3)
 **Goal:** Safe, consent-driven mutual connections and real-time private messaging.
 
@@ -119,6 +160,8 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 - [x] **4.2 Real-time Messaging (Supabase Realtime)**
   - `postgres_changes` subscription filtered by `conversation_id`; messages merged by id so the
     POST response and the realtime event can't duplicate.
+  - Match status is streamed too (migration 006): requests, acceptances and unmatches land
+    without a refresh, across Discover, Connections and the navbar badges.
   - Shared first question pinned as the conversation header.
   - [ ] Still to do: delivery state and typing indicators.
 - [ ] **4.3 Conversation Management**

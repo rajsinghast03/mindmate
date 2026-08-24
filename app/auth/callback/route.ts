@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeNextPath } from '@/lib/onboarding-draft';
 
 const AUTH_COMPLETE = '/auth/complete';
 
@@ -14,7 +15,8 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const nextFromQuery = searchParams.get('next');
   const nextFromCookie = getCookie(request, 'mindmate_auth_next');
-  const next = nextFromQuery ?? nextFromCookie ?? AUTH_COMPLETE;
+  // Both sources are attacker-influencable, so validate before redirecting.
+  const next = safeNextPath(nextFromQuery ?? nextFromCookie, AUTH_COMPLETE);
 
   if (code) {
     const supabase = await createClient();

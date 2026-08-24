@@ -68,6 +68,16 @@ export default function LandingPage() {
           </a>
         </div>
 
+        <p className="mt-5 text-sm text-ink-600">
+          Already have an account?{' '}
+          <Link
+            href="/auth/login"
+            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
+
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-ink-500">
           <div className="flex items-center gap-1.5">
             <EyeOff className="h-4 w-4 text-accent-500" />

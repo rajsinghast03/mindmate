@@ -53,6 +53,22 @@ export function clearOnboardingDraft() {
   sessionStorage.removeItem('temp_profile_details');
 }
 
+/**
+ * Validate a redirect target that came from a URL query param or cookie.
+ *
+ * Only same-origin absolute paths are allowed: it must start with a single "/".
+ * A protocol-relative value like "//evil.com" is a fully-qualified URL to a
+ * browser, so rejecting it is what stops this being an open redirect.
+ */
+export function safeNextPath(
+  value: string | null | undefined,
+  fallback: string
+): string {
+  if (!value) return fallback;
+  if (!value.startsWith('/') || value.startsWith('//')) return fallback;
+  return value;
+}
+
 export function setAuthNextCookie(path: string) {
   if (typeof window === 'undefined') return;
   document.cookie = `mindmate_auth_next=${encodeURIComponent(path)}; path=/; max-age=3600; SameSite=Lax`;

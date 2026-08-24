@@ -84,7 +84,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
 6. Verify: `npm run verify:supabase` then restart `npm run dev`.
-7. Run the remaining migrations in order: `002_onboarding_drafts.sql`, `003_profile_timezone.sql`, `004_curiosity_profile_validation.sql`, `005_phase3_matching.sql`.
+7. Run the remaining migrations in order: `002_onboarding_drafts.sql`, `003_profile_timezone.sql`, `004_curiosity_profile_validation.sql`, `005_phase3_matching.sql`, `006_realtime_matches.sql`.
 
 ### Matching Setup (Phase 3 — embeddings, consent, realtime chat)
 

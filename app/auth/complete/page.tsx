@@ -3,30 +3,38 @@
 import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   getOnboardingDraft,
   clearOnboardingDraft,
+  safeNextPath,
   type OnboardingDraft,
 } from '@/lib/onboarding-draft';
 
-async function resolveDraft(): Promise<OnboardingDraft | null> {
+/**
+ * Where a recovered draft came from.
+ *
+ * `local` means this browser wrote it, which is the only evidence we have that the
+ * person signing in is the person who typed it. `server` is the cross-device path
+ * (draft keyed by email), and anyone can write to that key for any address — so a
+ * server draft is never trusted enough to save without the owner seeing it first.
+ */
+type ResolvedDraft = { draft: OnboardingDraft; source: 'local' | 'server' } | null;
+
+async function resolveDraft(): Promise<ResolvedDraft> {
   const local = getOnboardingDraft();
-  if (local?.curiosityProfile) return local;
+  if (local?.curiosityProfile) return { draft: local, source: 'local' };
 
   try {
     const res = await fetch('/api/onboarding-draft');
     if (res.ok) {
       const { draft } = await res.json();
-      if (draft?.curiosityProfile) return draft as OnboardingDraft;
+      if (draft?.curiosityProfile) return { draft: draft as OnboardingDraft, source: 'server' };
     }
   } catch {
-    // fall through to metadata
+    // No draft to recover; onboarding starts from scratch below.
   }
 
-  const { data: { user } } = await createClient().auth.getUser();
-  const meta = user?.user_metadata?.mindmate_draft as OnboardingDraft | undefined;
-  return meta?.curiosityProfile ? meta : null;
+  return null;
 }
 
 export default function AuthCompletePage() {
@@ -37,6 +45,13 @@ export default function AuthCompletePage() {
   useEffect(() => {
     if (!isLoaded || started.current) return;
     started.current = true;
+
+    // Read from window rather than useSearchParams(): this effect is already
+    // client-only, and useSearchParams would force a Suspense refactor of the page.
+    const destination = safeNextPath(
+      new URLSearchParams(window.location.search).get('next'),
+      '/discover'
+    );
 
     (async () => {
       if (!isSupabaseMode) {
@@ -50,13 +65,18 @@ export default function AuthCompletePage() {
       }
 
       if (userProfile) {
-        router.replace('/discover');
+        router.replace(destination);
         return;
       }
 
-      const draft = await resolveDraft();
+      const resolved = await resolveDraft();
+      const draft = resolved?.draft;
 
+      // Auto-save only a draft this browser wrote. A server-recovered draft is
+      // shown on the review screen for explicit approval instead, so a draft
+      // planted against someone else's email can never silently become their profile.
       if (
+        resolved?.source === 'local' &&
         draft?.curiosityProfile &&
         draft.displayName &&
         draft.age &&
@@ -71,7 +91,7 @@ export default function AuthCompletePage() {
             draft.ianaTimezone ?? null
           );
           clearOnboardingDraft();
-          router.replace('/discover');
+          router.replace(destination);
           return;
         } catch {
           router.replace('/onboarding/review');
