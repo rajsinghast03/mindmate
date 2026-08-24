@@ -1,4 +1,4 @@
-import raw from './world-cities.json';
+import meta from './world-cities-meta.json';
 
 export type Country = {
   code: string;
@@ -10,65 +10,174 @@ export type City = {
   ianaTimezone: string;
 };
 
-/** A fully-resolved location as stored on profiles and drafts. */
+/** Per-country geography, lazy-loaded from /geo/<ISO2>.json */
+export type CountryGeo = {
+  /** [admin1Code, stateName] */
+  states: [string, string][];
+  /** admin1Code -> [cityName, ianaTimezone] */
+  cities: Record<string, [string, string][]>;
+};
+
+/**
+ * A fully-resolved location as stored on profiles and drafts.
+ * Label format: "City, State, Country" | "City, Country" | "Country".
+ */
 export type LocationSelection = {
-  /** Human-readable label, e.g. "Bengaluru, India" or "India". */
   label: string;
   country: string;
   countryCode: string;
+  state: string | null;
   city: string | null;
-  ianaTimezone: string;
+  ianaTimezone: string | null;
 };
 
 export const DEFAULT_COUNTRY_CODE = 'IN';
+const FALLBACK_TIMEZONE = 'Asia/Kolkata';
 
-const countryTuples = raw.countries as unknown as [string, string][];
+const countryTuples = meta.countries as unknown as [string, string][];
 
 export const COUNTRIES: Country[] = countryTuples.map(([code, name]) => ({
   code,
   name,
 }));
 
-const cityMap = raw.cities as unknown as Record<string, [string, string][]>;
-
-export const CITIES_BY_COUNTRY: Record<string, City[]> = Object.fromEntries(
-  Object.entries(cityMap).map(([code, cities]) => [
-    code,
-    cities.map(([name, ianaTimezone]) => ({ name, ianaTimezone })),
-  ])
-);
-
 export function getCountry(code: string): Country | undefined {
   return COUNTRIES.find(c => c.code === code);
 }
 
-export function getCitiesForCountry(code: string): City[] {
-  return CITIES_BY_COUNTRY[code] ?? [];
+function getCountryByName(name: string): Country | undefined {
+  const lower = name.toLowerCase();
+  return COUNTRIES.find(c => c.name.toLowerCase() === lower);
 }
 
-/** Build a selection object; falls back to the country's top city timezone when no city chosen. */
-export function resolveLocationSelection(
-  countryCode: string,
+// ---------------------------------------------------------------------------
+// Lazy geography loading (per-country JSON from /public/geo)
+// ---------------------------------------------------------------------------
+
+const geoCache = new Map<string, Promise<CountryGeo>>();
+
+export function getCountryGeo(countryCode: string): Promise<CountryGeo> {
+  const code = countryCode.toUpperCase();
+  let cached = geoCache.get(code);
+  if (!cached) {
+    cached = fetch(`/geo/${code}.json`).then(res => {
+      if (!res.ok) throw new Error(`No geo data for ${code}`);
+      return res.json() as Promise<CountryGeo>;
+    });
+    cached.catch(() => geoCache.delete(code)); // allow retry on failure
+    geoCache.set(code, cached);
+  }
+  return cached;
+}
+
+/** All cities of a country as [name, tz], alphabetically sorted. */
+export function flattenCities(geo: CountryGeo): [string, string][] {
+  return Object.values(geo.cities)
+    .flat()
+    .sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+export function getStateCode(geo: CountryGeo, stateName: string | null): string | null {
+  if (!stateName) return null;
+  return geo.states.find(([, n]) => n === stateName)?.[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Search normalization (diacritic-insensitive)
+// ---------------------------------------------------------------------------
+
+export function normalizeLocationSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase();
+}
+
+// ---------------------------------------------------------------------------
+// Selection builders
+// ---------------------------------------------------------------------------
+
+export function buildLabel(
+  countryName: string,
+  stateName: string | null,
   cityName: string | null
-): LocationSelection | null {
-  const country = getCountry(countryCode);
-  if (!country) return null;
+): string {
+  return [cityName, stateName, countryName].filter(Boolean).join(', ');
+}
 
-  const cities = getCitiesForCountry(countryCode);
-  const city = cityName ? cities.find(c => c.name === cityName) ?? null : null;
-  const fallbackTz = cities[0]?.ianaTimezone || 'UTC';
-  const ianaTimezone = city?.ianaTimezone ?? fallbackTz;
-
+export function buildLocationSelection(
+  countryCode: string,
+  countryName: string,
+  stateName: string | null,
+  cityName: string | null,
+  ianaTimezone: string | null
+): LocationSelection {
   return {
-    label: city ? `${city.name}, ${country.name}` : country.name,
-    country: country.name,
+    label: buildLabel(countryName, stateName, cityName),
+    country: countryName,
     countryCode,
-    city: city?.name ?? null,
-    ianaTimezone,
+    state: stateName,
+    city: cityName,
+    ianaTimezone: ianaTimezone || FALLBACK_TIMEZONE,
   };
 }
 
-/** Current UTC offset (in hours, fractional supported) for an IANA timezone — DST-safe. */
+/**
+ * Rebuild a LocationSelection from previously-stored profile fields.
+ * Handles legacy labels gracefully; the selector re-resolves the state/tz
+ * against live geo data once it loads.
+ */
+export function locationFromStored(
+  label: string | null | undefined,
+  ianaTimezone?: string | null
+): LocationSelection {
+  const defaultCountry =
+    getCountry(DEFAULT_COUNTRY_CODE) ?? { code: DEFAULT_COUNTRY_CODE, name: 'India' };
+  if (!label) {
+    return buildLocationSelection(
+      defaultCountry.code,
+      defaultCountry.name,
+      null,
+      null,
+      FALLBACK_TIMEZONE
+    );
+  }
+
+  const parts = label.split(',').map(s => s.trim()).filter(Boolean);
+  const maybeCountry =
+    parts.length > 1 ? getCountryByName(parts[parts.length - 1]) : undefined;
+
+  if (maybeCountry) {
+    const rest = parts.slice(0, -1);
+    const cityName = rest.length > 0 ? rest[rest.length - 1] : null;
+    const stateName = rest.length > 1 ? rest.slice(0, -1).join(', ') : null;
+    return {
+      label,
+      country: maybeCountry.name,
+      countryCode: maybeCountry.code,
+      state: stateName,
+      city: cityName,
+      ianaTimezone: ianaTimezone ?? FALLBACK_TIMEZONE,
+    };
+  }
+
+  // Unknown country segment — keep the raw label, assume default country
+  return {
+    label,
+    country: defaultCountry.name,
+    countryCode: defaultCountry.code,
+    state: parts.length > 2 ? parts[1] : null,
+    city: parts[0] ?? null,
+    ianaTimezone: ianaTimezone ?? FALLBACK_TIMEZONE,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Timezone utilities (DST-safe)
+// ---------------------------------------------------------------------------
+
+/** Current UTC offset (in hours, fractional supported) for an IANA timezone. */
 export function getUtcOffsetHours(ianaTimezone: string, when: Date = new Date()): number | null {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -86,81 +195,4 @@ export function getUtcOffsetHours(ianaTimezone: string, when: Date = new Date())
   } catch {
     return null;
   }
-}
-
-/**
- * Best-effort guess of the user's location from their browser timezone.
- * Returns null when the browser timezone matches nothing in our dataset.
- */
-export function detectBrowserCountry(): { countryCode: string; city: string | null } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const iana = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!iana) return null;
-
-    for (const [code, cities] of Object.entries(CITIES_BY_COUNTRY)) {
-      const exact = cities.find(c => c.ianaTimezone === iana);
-      if (exact) return { countryCode: code, city: exact.name };
-    }
-    // Partial match on the region segment (e.g. Asia/Kolkata vs dataset variants)
-    const region = iana.split('/')[0];
-    for (const [code, cities] of Object.entries(CITIES_BY_COUNTRY)) {
-      if (cities.some(c => c.ianaTimezone.startsWith(`${region}/`))) {
-        return { countryCode: code, city: null };
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Rebuild a LocationSelection from previously-stored profile fields.
- * Handles legacy labels like "Bengaluru, Karnataka (IST, UTC+5:30)" gracefully.
- */
-export function locationFromStored(
-  label: string | null | undefined,
-  ianaTimezone?: string | null
-): LocationSelection {
-  const defaultSelection = resolveLocationSelection(DEFAULT_COUNTRY_CODE, null)!;
-  if (!label) return defaultSelection;
-
-  // Exact dataset match on the clean canonical label
-  for (const [code, cities] of Object.entries(CITIES_BY_COUNTRY)) {
-    const countryName = getCountry(code)?.name;
-    if (!countryName || !label.endsWith(`, ${countryName}`)) continue;
-    const cityName = label.slice(0, -(countryName.length + 2));
-    if (cities.some(c => c.name === cityName)) {
-      return resolveLocationSelection(code, cityName)!;
-    }
-  }
-
-  const parts = label.split(',').map(s => s.trim());
-  const maybeCountry = parts.length > 1 ? parts[parts.length - 1] : null;
-  const countryMatch = maybeCountry ? getCountryByName(maybeCountry) : undefined;
-
-  if (countryMatch) {
-    const cityName = parts.slice(0, -1).join(', ') || null;
-    const knownCity = CITIES_BY_COUNTRY[countryMatch.code]?.find(c => c.name === cityName);
-    if (knownCity) return resolveLocationSelection(countryMatch.code, knownCity.name)!;
-    return {
-      label,
-      country: countryMatch.name,
-      countryCode: countryMatch.code,
-      city: cityName,
-      ianaTimezone: ianaTimezone ?? defaultSelection.ianaTimezone,
-    };
-  }
-
-  return {
-    ...defaultSelection,
-    label,
-    city: parts[0] || null,
-    ianaTimezone: ianaTimezone ?? defaultSelection.ianaTimezone,
-  };
-}
-
-function getCountryByName(name: string): Country | undefined {
-  return COUNTRIES.find(c => c.name.toLowerCase() === name.toLowerCase());
 }

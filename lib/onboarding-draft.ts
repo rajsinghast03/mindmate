@@ -4,8 +4,9 @@ export type OnboardingDraft = {
   age?: number;
   cityOrTimezone?: string;
   ianaTimezone?: string | null;
-  /** Raw country/city selection used to prefill the cascading dropdowns. */
+  /** Raw country/state/city selection used to prefill the cascading dropdowns. */
   countryCode?: string;
+  state?: string | null;
   city?: string | null;
 };
 

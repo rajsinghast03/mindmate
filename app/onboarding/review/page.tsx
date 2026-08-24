@@ -6,8 +6,8 @@ import { useMindmate } from '@/context/mindmate-context';
 import { LocationSelector } from '@/components/location-selector';
 import {
   DEFAULT_COUNTRY_CODE,
+  buildLocationSelection,
   locationFromStored,
-  resolveLocationSelection,
   type LocationSelection,
 } from '@/data/world-cities';
 import { ArrowLeft, Sparkles, ShieldCheck, AlertCircle } from 'lucide-react';
@@ -17,6 +17,7 @@ import {
   saveOnboardingDraft,
   clearOnboardingDraft,
 } from '@/lib/onboarding-draft';
+import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 
 export default function ProfileReviewPage() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function ProfileReviewPage() {
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState<number | string>(28);
   const [location, setLocation] = useState<LocationSelection | null>(
-    resolveLocationSelection(DEFAULT_COUNTRY_CODE, null)
+    buildLocationSelection(DEFAULT_COUNTRY_CODE, 'India', null, null, '')
   );
   const [curiosityText, setCuriosityText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,15 @@ export default function ProfileReviewPage() {
       if (draft.displayName) setDisplayName(draft.displayName);
       if (draft.age) setAge(draft.age);
       if (draft.countryCode) {
-        setLocation(resolveLocationSelection(draft.countryCode, draft.city ?? null));
+        setLocation(
+          buildLocationSelection(
+            draft.countryCode,
+            locationFromStored(draft.cityOrTimezone, draft.ianaTimezone).country,
+            draft.state ?? null,
+            draft.city ?? null,
+            draft.ianaTimezone ?? ''
+          )
+        );
       } else if (draft.cityOrTimezone) {
         setLocation(locationFromStored(draft.cityOrTimezone, draft.ianaTimezone));
       }
@@ -80,19 +89,21 @@ export default function ProfileReviewPage() {
       return;
     }
 
-    if (!curiosityText.trim() || curiosityText.trim().length < 40) {
-      setError('Please ensure your Curiosity Profile is filled out.');
+    const profileValidation = validateCuriosityProfile(curiosityText);
+    if (!profileValidation.valid) {
+      setError(profileValidation.errors[0]);
       return;
     }
 
     if (isSupabaseMode && !authUser) {
       saveOnboardingDraft({
-        curiosityProfile: curiosityText.trim(),
+        curiosityProfile: profileValidation.normalizedText,
         displayName: displayName.trim(),
         age: numericAge,
         cityOrTimezone: location.label,
         ianaTimezone: location.ianaTimezone,
         countryCode: location.countryCode,
+        state: location.state,
         city: location.city,
       });
       router.push('/auth/login?next=/auth/complete');
@@ -107,7 +118,7 @@ export default function ProfileReviewPage() {
         displayName.trim(),
         numericAge,
         location.label,
-        curiosityText.trim(),
+        profileValidation.normalizedText,
         location.ianaTimezone
       );
       clearOnboardingDraft();
