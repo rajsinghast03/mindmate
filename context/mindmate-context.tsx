@@ -217,24 +217,53 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
 
     // postgres_changes filters can't express OR, and a match references this user
     // through either column, so both sides of the pair need their own listener.
-    const channel = supabase.channel(uniqueChannelName(`matches:${profileId}`));
-    for (const column of ['profile_a_id', 'profile_b_id']) {
-      channel.on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'matches',
-          filter: `${column}=eq.${profileId}`,
-        },
-        refetch
-      );
-    }
-    channel.subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      // Hand the socket the user's JWT before joining. postgres_changes evaluates
+      // RLS at join time, and a channel joined without a user token reports
+      // SUBSCRIBED and then silently receives nothing.
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      const token = data.session?.access_token;
+      if (token) await supabase.realtime.setAuth(token);
+      if (cancelled) return;
+
+      channel = supabase.channel(uniqueChannelName(`matches:${profileId}`));
+      for (const column of ['profile_a_id', 'profile_b_id']) {
+        channel.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'matches',
+            filter: `${column}=eq.${profileId}`,
+          },
+          refetch
+        );
+      }
+
+      // Realtime never replays what was missed while disconnected, so resync on every
+      // (re)connect. A backgrounded tab can have its socket dropped and silently lose
+      // every update until the next reload.
+      channel.subscribe(status => {
+        if (status === 'SUBSCRIBED') refetch();
+      });
+    })();
+
+    // Same reasoning for returning to the tab: the socket may have been throttled
+    // or torn down while it was hidden.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refetch();
+    };
+    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
+      cancelled = true;
       if (timer) clearTimeout(timer);
-      void supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisible);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [userProfile?.id, applyState]);
 

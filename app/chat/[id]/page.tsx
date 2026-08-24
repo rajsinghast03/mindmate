@@ -75,8 +75,17 @@ export default function ChatRoomPage() {
     });
   }, []);
 
-  // Load the thread. Membership and the connected-status gate are enforced by the
-  // messages RLS policy, so a non-member simply gets a 404 here.
+  /**
+   * Fetch the whole thread. Membership and the connected-status gate are enforced
+   * by the messages RLS policy, so a non-member simply gets a 404.
+   */
+  const loadConversation = useCallback(async () => {
+    const res = await fetch(`/api/conversations/${conversationId}/messages`);
+    if (!res.ok) return null;
+    const { conversation: loaded } = await res.json();
+    return loaded as Conversation;
+  }, [conversationId]);
+
   useEffect(() => {
     if (!isSupabaseMode || !conversationId) return;
     let cancelled = false;
@@ -84,11 +93,8 @@ export default function ChatRoomPage() {
     (async () => {
       setLoadingRemote(true);
       try {
-        const res = await fetch(`/api/conversations/${conversationId}/messages`);
-        if (!cancelled && res.ok) {
-          const { conversation: loaded } = await res.json();
-          setRemoteConversation(loaded);
-        }
+        const loaded = await loadConversation();
+        if (!cancelled && loaded) setRemoteConversation(loaded);
       } catch (e) {
         console.error('Failed to load conversation:', e);
       } finally {
@@ -99,31 +105,61 @@ export default function ChatRoomPage() {
     return () => {
       cancelled = true;
     };
-  }, [isSupabaseMode, conversationId]);
+  }, [isSupabaseMode, conversationId, loadConversation]);
 
   // Live delivery of the other person's messages.
   useEffect(() => {
     if (!isSupabaseMode || !conversationId) return;
 
     const supabase = createClient();
-    const channel = supabase
-      .channel(uniqueChannelName(`messages:${conversationId}`))
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        payload => appendMessages([dbMessageToMessage(payload.new as DbMessage)])
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    const resync = () =>
+      void loadConversation()
+        .then(loaded => loaded && appendMessages(loaded.messages))
+        .catch(() => {});
+
+    void (async () => {
+      // The socket must carry the user's JWT before joining: postgres_changes
+      // evaluates RLS at join time, and a channel joined without one reports
+      // SUBSCRIBED and then silently receives nothing.
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      const token = data.session?.access_token;
+      if (token) await supabase.realtime.setAuth(token);
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(uniqueChannelName(`messages:${conversationId}`))
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          payload => appendMessages([dbMessageToMessage(payload.new as DbMessage)])
+        )
+        // Realtime does not replay missed events, so pull the thread on every
+        // (re)connect. appendMessages dedupes by id, so re-reading is harmless.
+        .subscribe(status => {
+          if (status === 'SUBSCRIBED') resync();
+        });
+    })();
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') resync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
-      void supabase.removeChannel(channel);
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [isSupabaseMode, conversationId, appendMessages]);
+  }, [isSupabaseMode, conversationId, appendMessages, loadConversation]);
 
   // Auto scroll to bottom on message updates
   useEffect(() => {
