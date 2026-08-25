@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { REPORT_CATEGORY_LABELS, REPORT_STATUSES } from '@/lib/moderation';
-import { ShieldAlert, Loader2, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Loader2, MessageSquare, AlertTriangle, ChevronDown } from 'lucide-react';
 
 type Report = {
   id: string;
@@ -14,6 +14,14 @@ type Report = {
   createdAt: string;
   reporter: { id: string; displayName: string | null } | null;
   reported: { id: string; displayName: string | null; totalReports: number };
+};
+
+type ThreadMessage = {
+  id: string;
+  body: string;
+  createdAt: string;
+  senderName: string;
+  isReported: boolean;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -29,6 +37,27 @@ export default function AdminReportsPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [denied, setDenied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [threads, setThreads] = useState<Record<string, ThreadMessage[] | 'loading' | 'none'>>({});
+
+  const toggleThread = async (reportId: string) => {
+    if (threads[reportId]) {
+      setThreads(prev => {
+        const next = { ...prev };
+        delete next[reportId];
+        return next;
+      });
+      return;
+    }
+
+    setThreads(prev => ({ ...prev, [reportId]: 'loading' }));
+    const res = await fetch(`/api/admin/reports/${reportId}/thread`);
+    if (!res.ok) {
+      setThreads(prev => ({ ...prev, [reportId]: 'none' }));
+      return;
+    }
+    const { messages } = await res.json();
+    setThreads(prev => ({ ...prev, [reportId]: messages.length ? messages : 'none' }));
+  };
 
   const load = useCallback(async () => {
     setReports(null);
@@ -159,10 +188,56 @@ export default function AdminReportsPage() {
               </p>
 
               {report.conversationId && (
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-ink-500">
-                  <MessageSquare className="h-3 w-3" />
-                  <span className="font-mono">conversation {report.conversationId.slice(0, 8)}…</span>
-                </p>
+                <>
+                  <button
+                    onClick={() => toggleThread(report.id)}
+                    className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-ink-600 transition-colors hover:text-ink-950"
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    <span>{threads[report.id] ? 'Hide' : 'Show'} the conversation</span>
+                    <ChevronDown
+                      className={`h-3 w-3 transition-transform ${threads[report.id] ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {threads[report.id] === 'loading' && (
+                    <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-500">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Loading messages…</span>
+                    </div>
+                  )}
+
+                  {threads[report.id] === 'none' && (
+                    <p className="mt-2 text-[11px] text-ink-500">
+                      No messages in this conversation.
+                    </p>
+                  )}
+
+                  {Array.isArray(threads[report.id]) && (
+                    <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-paper-200 bg-paper-100/60 p-3">
+                      {(threads[report.id] as ThreadMessage[]).map(msg => (
+                        <div key={msg.id} className="text-xs leading-relaxed">
+                          <span
+                            className={
+                              msg.isReported
+                                ? 'font-semibold text-accent-700'
+                                : 'font-medium text-ink-600'
+                            }
+                          >
+                            {msg.senderName}:
+                          </span>{' '}
+                          <span className="whitespace-pre-wrap text-ink-800">{msg.body}</span>
+                          <span className="ml-1.5 text-[10px] text-ink-400">
+                            {new Date(msg.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                      <p className="border-t border-paper-200 pt-2 text-[10px] text-ink-400">
+                        The reported person&apos;s messages are highlighted.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="mt-3 flex flex-wrap gap-1.5 border-t border-paper-200 pt-3">

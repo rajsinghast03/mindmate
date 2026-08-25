@@ -300,7 +300,8 @@ export default function ProfileSettingsPage() {
                 Delete Profile & Reset Data
               </h3>
               <p className="text-xs text-red-700 mt-1">
-                Permanently deletes your curiosity profile, match history, and conversation threads.
+                Permanently deletes your curiosity profile, match history, conversation threads
+                and your Mindmate account itself.
               </p>
             </div>
 
@@ -329,8 +330,12 @@ export default function ProfileSettingsPage() {
             <h3 className="font-serif text-xl font-medium text-ink-950 mb-2">
               Delete all data?
             </h3>
-            <p className="text-xs text-ink-600 leading-relaxed mb-6">
-              This action cannot be undone. Your profile, matches, and conversations will be permanently wiped.
+            <p className="text-xs text-ink-600 leading-relaxed mb-4">
+              This cannot be undone. Your profile, matches and conversations are wiped, and your
+              account is closed — signing in again would start you from nothing.
+            </p>
+            <p className="mb-6 text-xs leading-relaxed text-ink-500">
+              The people you were talking to will find those conversations gone too.
             </p>
 
             <div className="flex items-center justify-end gap-3">

@@ -216,9 +216,31 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ profile: dbProfileToProfile(data) });
 }
 
+/**
+ * Delete everything, including the account.
+ *
+ * Previously this removed the `profiles` row and left `auth.users` behind, so
+ * "delete all my data" left an account that could still sign in — to an empty
+ * app, but still there. Deleting the auth user cascades the rest: profiles
+ * references auth.users ON DELETE CASCADE, and matches, conversations, messages,
+ * blocks and reports all cascade from profiles in turn.
+ *
+ * The profile row is removed first so that a failure at that step is reported
+ * before the account is destroyed, rather than after.
+ *
+ * Note this also removes reports filed *about* this person
+ * (reports.reported_profile_id cascades). Deletion winning over moderation
+ * retention is the defensible default for a product that promises data
+ * sovereignty, but it does mean someone can clear reports against them by
+ * deleting and re-registering. Changing that is a policy decision, not a bug fix.
+ */
 export async function DELETE() {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  }
+
+  if (!isServiceRoleConfigured()) {
+    return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
   }
 
   const supabase = await createClient();
@@ -240,7 +262,25 @@ export async function DELETE() {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
+  // Deleting the user invalidates its sessions, so the explicit signOut that used
+  // to be here is redundant — but it runs first anyway, because a failure to
+  // delete the account should not leave the caller still holding a live session
+  // for an account whose profile is already gone.
   await supabase.auth.signOut();
+
+  const { error: accountError } = await createServiceClient().auth.admin.deleteUser(user.id);
+
+  if (accountError) {
+    // The profile is already gone, so report honestly rather than claiming success:
+    // the user's data is deleted but the login still exists.
+    return NextResponse.json(
+      {
+        error:
+          'Your profile and conversations were deleted, but the account itself could not be removed. Please contact support.',
+      },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true });
 }

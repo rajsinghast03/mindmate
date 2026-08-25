@@ -197,15 +197,19 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 **Goal:** User safety, full data sovereignty, and compliance.
 
 ### Tasks:
-- [ ] **5.1 Privacy & Visibility Settings**
-  - "Pause Discovery" mode (temporarily hide profile from new match pools while keeping active chats).
-  - "Delete Profile & All Data" (hard delete profile, embeddings, messages, and account).
+- [x] **5.1 Privacy & Visibility Settings**
+  - [x] "Pause Discovery" mode (hides the profile from new match pools, keeps active chats).
+  - [x] "Delete Profile & All Data" — now deletes the `auth.users` account too, which cascades
+        profile, embedding, matches, conversations, messages, blocks and reports. Previously it
+        removed only the profile row and left an account that could still sign in.
 - [ ] **5.2 Safety & Moderation Tools**
   - [x] Report handling and moderation view — `/admin/reports`, gated by the `ADMIN_EMAILS`
         allowlist, answering 404 (not 403) to everyone else so the route does not advertise
         itself. Status transitions are service-role only; no client policy grants UPDATE on
         `reports`, so a reported user cannot bury their own.
-  - [ ] Reported message content is not viewable from the queue.
+  - [x] Reported message content viewable from the queue, keyed on the *report* rather than the
+        conversation — an admin can only read a thread someone flagged to them, never an
+        arbitrary one.
   - [ ] Automated toxicity / harassment scanning on messages.
 - [ ] **5.3 Auth Abuse Prevention** — deliberately deferred to just before deploy (Phase 6).
       All of it is dashboard configuration plus a widget on three forms; none of it is useful

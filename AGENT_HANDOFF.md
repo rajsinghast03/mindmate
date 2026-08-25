@@ -149,8 +149,14 @@
       grant back. And `upsert` compiles to `INSERT ... ON CONFLICT DO UPDATE SET user_id = ...`,
       whose privileges are checked **statically**, so `UPDATE(user_id)` is required even when no
       conflict can occur. Omitting it broke profile creation outright.
-- [ ] Report queue shows metadata and the reporter's own words, not the reported messages —
-      viewing those means an admin path around the messages RLS, which deserves its own design.
+- [x] Reported threads viewable from the queue (`/api/admin/reports/[id]/thread`). Keyed on the
+      report, not the conversation: an admin cannot request an arbitrary thread, only one that was
+      actually flagged, and the reported person's messages are highlighted. Runs on the service
+      role since the messages policy scopes reads to the two participants.
+- [ ] Account deletion also removes reports filed *about* that person
+      (`reports.reported_profile_id` cascades), so someone can clear their moderation history by
+      deleting and re-registering. Deletion beating retention is the defensible default for this
+      product, but it is a policy choice worth revisiting, not an oversight.
 - [ ] Turnstile + Supabase auth rate limits (ROADMAP 5.3) — now about credential stuffing
       against signInWithPassword and Resend-quota burn, not magic-link email-bombing.
       **Sequenced with the Phase 6 deploy, not before it.**
