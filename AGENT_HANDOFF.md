@@ -109,7 +109,13 @@
       idempotent. Personas now live in `data/seed-profiles.json`, shared by the app and the scripts.
 
 ### Up Next (Phase 4/5 remainder)
-- [ ] Typing indicators and delivery state (ROADMAP 4.2).
+- [x] Typing indicators (ROADMAP 4.2) — private Broadcast channel, RLS-gated in migration 007.
+- [x] Inbox rebuild, server-backed unread state, message pagination (ROADMAP 4.4).
+- [ ] Delivery state / read receipts (ROADMAP 4.2).
+- [ ] `match_candidate_profiles` (migration 005) is `SECURITY DEFINER` with a caller-supplied
+      `target_profile_id` and no ownership guard, and is still granted to `authenticated` — a
+      signed-in user can enumerate other people's `curiosity_profile` text through it. Migration
+      007 does the matching `REVOKE` for `conversation_summaries`; 005's needs the same.
 - [ ] Blocks & reports UI — tables and RLS exist, nothing writes to them yet (ROADMAP 4.3 / 5.2).
       The chat overflow menu currently `alert()`s and unmatches instead of recording a report.
 - [ ] Turnstile on the login form (ROADMAP 5.3).

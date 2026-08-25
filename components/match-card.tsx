@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Match } from '@/types';
+import { Avatar } from '@/components/avatar';
 import { Sparkles, HelpCircle, MapPin, Check, X, Clock, Inbox } from 'lucide-react';
 
 interface MatchCardProps {
@@ -32,9 +33,7 @@ export function MatchCard({ match, onConnect, onPass, disabled = false }: MatchC
       <div className="flex items-start justify-between gap-4 border-b border-paper-200 pb-5">
         <div className="flex items-center gap-3.5">
           {/* Calm Avatar Circle */}
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-paper-200 text-ink-950 font-serif text-xl sm:text-2xl font-semibold border border-paper-300/80 shadow-sm">
-            {candidateProfile.displayName.charAt(0)}
-          </div>
+          <Avatar displayName={candidateProfile.displayName} size="lg" />
           <div>
             <div className="flex items-baseline gap-2 flex-wrap">
               <h3 className="font-serif text-xl sm:text-2xl font-medium text-ink-950">

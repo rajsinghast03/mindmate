@@ -157,38 +157,61 @@ export async function loadActiveMatches(
 
 type ConversationSummary = {
   messageCount: number;
+  unreadCount: number;
   lastMessage: DbMessage | null;
   lastActivityAt: string | null;
 };
 
+/** Row shape of the conversation_summaries RPC (migration 007). */
+type DbConversationSummary = {
+  conversation_id: string;
+  message_count: number | string;
+  unread_count: number | string;
+  last_message_id: string | null;
+  last_message_body: string | null;
+  last_message_sender: string | null;
+  last_message_at: string | null;
+};
+
 /**
- * Latest message and total count per conversation, for the connections list.
+ * Latest message, total count and unread count per conversation, for the inbox.
  *
- * Fetches the threads and reduces in memory — fine at the volumes this app will
- * see for a long while. If message counts ever grow, promote this to a view or an
- * RPC doing DISTINCT ON (conversation_id).
+ * One round trip: the RPC does DISTINCT ON for the last message and a FILTER'd
+ * count against conversation_reads.last_read_at for the unread tally. It is
+ * SECURITY DEFINER and REVOKE'd from `authenticated`, so it must be called on
+ * the service client.
+ *
+ * Postgres returns BIGINT counts, which PostgREST may serialise as strings.
  */
 async function loadConversationSummaries(
   service: ServiceClient,
-  conversationIds: string[]
+  profileId: string
 ): Promise<Map<string, ConversationSummary>> {
   const summaries = new Map<string, ConversationSummary>();
-  if (!conversationIds.length) return summaries;
 
-  const { data, error } = await service
-    .from('messages')
-    .select('id, conversation_id, sender_profile_id, body, created_at')
-    .in('conversation_id', conversationIds)
-    .order('created_at', { ascending: true });
+  const { data, error } = await service.rpc('conversation_summaries', {
+    target_profile_id: profileId,
+  });
 
   if (error) throw new Error(error.message);
 
-  for (const row of (data ?? []) as DbMessage[]) {
-    const existing = summaries.get(row.conversation_id);
+  for (const row of (data ?? []) as DbConversationSummary[]) {
+    const lastMessage: DbMessage | null =
+      row.last_message_id && row.last_message_at && row.last_message_sender
+        ? {
+            id: row.last_message_id,
+            conversation_id: row.conversation_id,
+            sender_profile_id: row.last_message_sender,
+            body: row.last_message_body ?? '',
+            created_at: row.last_message_at,
+          }
+        : null;
+
     summaries.set(row.conversation_id, {
-      messageCount: (existing?.messageCount ?? 0) + 1,
-      lastMessage: row,
-      lastActivityAt: row.created_at,
+      messageCount: Number(row.message_count) || 0,
+      unreadCount: Number(row.unread_count) || 0,
+      lastMessage,
+      lastActivityAt: row.last_message_at,
     });
   }
 
@@ -208,13 +231,16 @@ export async function loadMatchState(
   service: ServiceClient,
   profileId: string
 ): Promise<MatchState> {
-  const matches = await loadActiveMatches(service, profileId);
+  // The summary RPC is keyed only on the viewer, so it does not need to wait for
+  // the match rows. Running both together saves a round trip on every load; the
+  // cost is one wasted RPC for a user with no connections, which is concurrent
+  // and so free in wall time.
+  const [matches, summaries] = await Promise.all([
+    loadActiveMatches(service, profileId),
+    loadConversationSummaries(service, profileId),
+  ]);
 
   const connected = matches.filter((m) => m.status === 'connected' && m.conversationId);
-  const summaries = await loadConversationSummaries(
-    service,
-    connected.map((m) => m.conversationId as string)
-  );
 
   const conversations: Conversation[] = connected
     .map((match) => {
@@ -229,6 +255,7 @@ export async function loadMatchState(
         resonanceSummary: match.explanation,
         messages: lastMessage ? [lastMessage] : [],
         messageCount: summary?.messageCount ?? 0,
+        unreadCount: summary?.unreadCount ?? 0,
         createdAt: match.createdAt,
         lastActivityAt: summary?.lastActivityAt ?? match.createdAt,
       };

@@ -15,8 +15,10 @@ export function Navbar() {
   const incomingRequestCount = matches.filter(
     m => m.status === 'requested' && m.direction === 'incoming'
   ).length;
-  // Requests awaiting this user belong on the Conversations tab alongside threads.
-  const connectionsCount = conversations.length + incomingRequestCount;
+  // Both halves are things the user has to act on. A plain conversation count was
+  // not — it never went down, so it never meant anything.
+  const unreadCount = conversations.reduce((total, c) => total + c.unreadCount, 0);
+  const connectionsCount = unreadCount + incomingRequestCount;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-paper-300/80 bg-paper-100/90 backdrop-blur-md transition-all">
@@ -32,14 +34,14 @@ export function Navbar() {
             <>
               <Link
                 href="/discover"
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3.5 ${
                   pathname === '/discover'
                     ? 'bg-paper-200 text-ink-950 font-semibold shadow-sm'
                     : 'text-ink-600 hover:bg-paper-200/60 hover:text-ink-900'
                 }`}
               >
                 <Compass className="h-4 w-4" />
-                <span>Discover</span>
+                <span className="hidden sm:inline">Discover</span>
                 {suggestedCount > 0 && (
                   <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
                     {suggestedCount}
@@ -49,14 +51,14 @@ export function Navbar() {
 
               <Link
                 href="/connections"
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3.5 ${
                   pathname.startsWith('/connections') || pathname.startsWith('/chat')
                     ? 'bg-paper-200 text-ink-950 font-semibold shadow-sm'
                     : 'text-ink-600 hover:bg-paper-200/60 hover:text-ink-900'
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
-                <span>Conversations</span>
+                <span className="hidden sm:inline">Conversations</span>
                 {connectionsCount > 0 && (
                   <span
                     className={`ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
@@ -70,7 +72,7 @@ export function Navbar() {
 
               <Link
                 href="/profile"
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3.5 ${
                   pathname === '/profile'
                     ? 'bg-paper-200 text-ink-950 font-semibold shadow-sm'
                     : 'text-ink-600 hover:bg-paper-200/60 hover:text-ink-900'

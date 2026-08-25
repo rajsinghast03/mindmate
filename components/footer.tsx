@@ -1,9 +1,19 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/logo';
 import { ShieldCheck, Heart } from 'lucide-react';
 
 export function Footer() {
+  const pathname = usePathname();
+
+  // The chat thread is a full-height flex column sized to the viewport. A footer
+  // underneath it makes the whole page scroll, which on mobile walks the composer
+  // off-screen behind the URL bar.
+  if (pathname?.startsWith('/chat/')) return null;
+
   return (
     <footer className="border-t border-paper-300/80 bg-paper-100/50 py-12 px-4 sm:px-6">
       <div className="mx-auto max-w-5xl">

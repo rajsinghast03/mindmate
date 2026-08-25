@@ -75,8 +75,18 @@ async function loadContext(
   };
 }
 
+/** Page size for the thread. The client scrolls up to pull older pages. */
+const DEFAULT_PAGE_SIZE = 30;
+const MAX_PAGE_SIZE = 100;
+
+function readPageSize(value: string | null): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_PAGE_SIZE;
+  return Math.min(parsed, MAX_PAGE_SIZE);
+}
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!isSupabaseConfigured()) {
@@ -102,17 +112,43 @@ export async function GET(
     return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
   }
 
-  const { data: rows, error } = await supabase
+  const limit = readPageSize(req.nextUrl.searchParams.get('limit'));
+  const before = req.nextUrl.searchParams.get('before');
+
+  // Newest-first with one extra row: the extra is how we know there is another
+  // page without a second count query. Reversed to ascending before mapping.
+  //
+  // The cursor is `created_at` alone. timestamptz is microsecond-resolution, so
+  // two messages in one conversation sharing an instant is not a real scenario;
+  // a composite (created_at, id) keyset would cost the index scan for nothing.
+  let query = supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .limit(limit + 1);
+
+  if (before) query = query.lt('created_at', before);
+
+  const { data: rows, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const messages = (rows ?? []).map((row: DbMessage) => dbMessageToMessage(row));
+  const page = (rows ?? []) as DbMessage[];
+  const hasMore = page.length > limit;
+  const messages = page
+    .slice(0, limit)
+    .reverse()
+    .map((row) => dbMessageToMessage(row));
+
+  // messageCount must stay the thread total, not the page length — the inbox
+  // and the header both read it.
+  const { count } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversation_id', conversationId);
 
   // Reaching here means the match is connected, so the raw profile is unlocked.
   const conversation: Conversation = {
@@ -122,12 +158,17 @@ export async function GET(
     sharedQuestion: context.match.shared_question,
     resonanceSummary: context.match.explanation,
     messages,
-    messageCount: messages.length,
+    messageCount: count ?? messages.length,
+    // Unread is owned by the inbox query; a thread you are looking at is read.
+    unreadCount: 0,
     createdAt: context.createdAt,
     lastActivityAt: messages.at(-1)?.createdAt ?? context.createdAt,
   };
 
-  return NextResponse.json({ conversation });
+  return NextResponse.json({
+    conversation,
+    page: { hasMore, oldestCursor: messages[0]?.createdAt ?? null },
+  });
 }
 
 export async function POST(

@@ -71,6 +71,12 @@ export type Message = {
   senderProfileId: string;
   body: string;
   createdAt: string;
+  /**
+   * Client-only. Set on the optimistic bubble rendered before the POST returns;
+   * the server row that replaces it never carries these.
+   */
+  pending?: boolean;
+  failed?: boolean;
 };
 
 export type Conversation = {
@@ -81,10 +87,19 @@ export type Conversation = {
   resonanceSummary: string;
   /** The full thread on the chat screen; just the latest entry in list views. */
   messages: Message[];
-  /** Total in the thread — `messages` may hold only a preview. */
+  /** Total in the thread — `messages` may hold only a preview or the newest page. */
   messageCount: number;
+  /** Messages from the counterpart since this viewer last opened the thread. */
+  unreadCount: number;
   createdAt: string;
   lastActivityAt: string;
+};
+
+/** Cursor state for the thread's "load earlier messages" paging. */
+export type MessagePage = {
+  hasMore: boolean;
+  /** `createdAt` of the oldest message in the page just returned. */
+  oldestCursor: string | null;
 };
 
 export type SampleCuriosityProfile = {

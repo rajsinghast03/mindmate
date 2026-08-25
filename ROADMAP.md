@@ -163,7 +163,28 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - Match status is streamed too (migration 006): requests, acceptances and unmatches land
     without a refresh, across Discover, Connections and the navbar badges.
   - Shared first question pinned as the conversation header.
-  - [ ] Still to do: delivery state and typing indicators.
+  - [x] Typing indicators over a **private** Broadcast channel (migration 007). Supabase evaluates
+        RLS on `realtime.messages` for private channels, so only the two people in a conversation
+        can join `convo:<id>` — a stranger holding the UUID cannot watch.
+  - [ ] Still to do: delivery state (sent/delivered/read receipts). Optimistic send with a
+        pending state and a retry affordance is in; per-message read receipts are not.
+- [x] **4.4 Inbox & thread UX** (migration 007)
+  - `/connections` is a compact list: ~68px rows, `You:` / `<Name>:` attribution on the preview,
+    a relative timestamp, and an unread badge. A name filter and a "show all" reveal appear once
+    the list is long enough to need them.
+  - **Unread state is server-backed** — `conversation_reads(conversation_id, profile_id,
+    last_read_at)`. The navbar badge is now `unread + incoming requests` rather than a total
+    conversation count that never went down.
+  - **Message pagination** — `GET /api/conversations/[id]/messages` takes `?limit=&before=` and
+    returns 30 newest by default. The thread loads older pages on upward scroll, anchoring the
+    reading position across the prepend. Realtime reconnects now resync one page, not the thread.
+  - `conversation_summaries()` RPC replaces the in-memory reduce that read every message row of
+    every conversation to compute a preview.
+  - Thread polish: date separators, grouped consecutive messages, optimistic send, auto-growing
+    composer, Enter-to-send only on fine pointers, and a "new message" pill instead of yanking
+    the reader to the bottom mid-scroll.
+  - Mobile: `100dvh` sizing, footer suppressed on `/chat/*`, safe-area padding under the composer,
+    condensed header, and a collapsible pinned question.
 - [ ] **4.3 Conversation Management**
   - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
   - [ ] Block & report dialogs with reason capture — the `blocks` and `reports` tables and their RLS

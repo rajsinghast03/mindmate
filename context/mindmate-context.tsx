@@ -43,6 +43,13 @@ interface MindmateContextType {
   passMatch: (matchId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => void;
   unmatchConversation: (conversationId: string) => Promise<void>;
+  /** Clear the unread badge for a thread and persist the read mark. */
+  markConversationRead: (conversationId: string) => void;
+  /**
+   * The thread the user is currently looking at, if any. Registered by the chat
+   * page so incoming messages there never light the badge.
+   */
+  setActiveConversationId: (conversationId: string | null) => void;
   togglePauseDiscovery: () => Promise<void>;
   resetAllData: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -99,13 +106,73 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   // Guards the top-up call so a re-render storm can't fire several generations.
   const generating = useRef(false);
 
+  // Held in a ref, not state: only applyState reads it, and re-rendering the whole
+  // tree because the user opened a thread would be wasteful.
+  const activeConversationId = useRef<string | null>(null);
+
   const applyState = useCallback(
     (payload: { matches?: Match[]; conversations?: Conversation[] }) => {
       if (payload.matches) setMatches(payload.matches);
-      if (payload.conversations) setConversations(payload.conversations);
+      if (payload.conversations) {
+        // The thread on screen is read by definition. Without this the badge
+        // blips to 1 and back on every arrival: the provider's message listener
+        // refetches before the read mark round-trips.
+        const active = activeConversationId.current;
+        setConversations(
+          active
+            ? payload.conversations.map(c =>
+                c.id === active ? { ...c, unreadCount: 0 } : c
+              )
+            : payload.conversations
+        );
+      }
     },
     []
   );
+
+  const setActiveConversationId = useCallback((conversationId: string | null) => {
+    activeConversationId.current = conversationId;
+  }, []);
+
+  // The chat page calls markConversationRead on every arrival, so the write is
+  // coalesced; the optimistic half below is not, or opening a thread would lag.
+  const readTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  /**
+   * Zero the badge immediately, then persist. The optimistic half is what makes
+   * opening a thread feel instant; the POST is what makes it survive a reload.
+   */
+  const markConversationRead = useCallback((conversationId: string) => {
+    setConversations(prev =>
+      prev.some(c => c.id === conversationId && c.unreadCount > 0)
+        ? prev.map(c => (c.id === conversationId ? { ...c, unreadCount: 0 } : c))
+        : prev
+    );
+
+    if (!SUPABASE_MODE) return;
+
+    const timers = readTimers.current;
+    const existing = timers.get(conversationId);
+    if (existing) clearTimeout(existing);
+
+    timers.set(
+      conversationId,
+      setTimeout(() => {
+        timers.delete(conversationId);
+        void fetch(`/api/conversations/${conversationId}/read`, { method: 'POST' }).catch(() => {
+          // Best-effort: a failed mark just means the badge returns on the next fetch.
+        });
+      }, 500)
+    );
+  }, []);
+
+  useEffect(() => {
+    const timers = readTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   /** Ask the server to top up suggestions, then adopt whatever state it returns. */
   const generateSuggestions = useCallback(async () => {
@@ -144,14 +211,21 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     const load = async () => {
       try {
         if (SUPABASE_MODE) {
-          const res = await fetch('/api/profile');
+          // Both in flight at once. Nothing renders until isLoaded, so chaining
+          // these cost the user the sum of two round trips to Supabase rather
+          // than the slower of them. /api/matches resolves the viewer itself and
+          // answers with empty arrays when there is no profile yet, so asking
+          // before we know whether one exists is safe.
+          const [res, matchRes] = await Promise.all([
+            fetch('/api/profile'),
+            fetch('/api/matches'),
+          ]);
+
           if (res.ok) {
             const data = await res.json();
             if (data.user) setAuthUser({ id: data.user.id, email: data.user.email });
             if (data.profile) {
               setUserProfile(data.profile);
-
-              const matchRes = await fetch('/api/matches');
               if (matchRes.ok) applyState(await matchRes.json());
             }
           }
@@ -396,6 +470,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
               resonanceSummary: target.explanation,
               messages: [],
               messageCount: 0,
+              unreadCount: 0,
               createdAt: new Date().toISOString(),
               lastActivityAt: new Date().toISOString(),
             },
@@ -539,6 +614,8 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         passMatch,
         sendMessage,
         unmatchConversation,
+        markConversationRead,
+        setActiveConversationId,
         togglePauseDiscovery,
         resetAllData,
         signOut,

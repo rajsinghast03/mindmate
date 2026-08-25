@@ -43,6 +43,7 @@ const config: Config = {
           100: "#EEF4F0",
           200: "#D7E4DC",
           500: "#5C7A68",
+          600: "#4C6656",
           700: "#3D5245",
         }
       },
@@ -55,6 +56,33 @@ const config: Config = {
         'soft': '0 4px 20px -2px rgba(20, 20, 19, 0.05)',
         'card': '0 8px 30px -4px rgba(20, 20, 19, 0.07)',
         'lifted': '0 16px 40px -8px rgba(20, 20, 19, 0.1)',
+      },
+      // Hand-rolled rather than pulling in tailwindcss-animate for three
+      // keyframes. Note the `animate-in fade-in ...` classes elsewhere in the
+      // app are that plugin's API and are currently no-ops.
+      keyframes: {
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'rise-in': {
+          from: { opacity: '0', transform: 'translateY(4px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'drop-in': {
+          from: { opacity: '0', transform: 'translateY(-6px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'typing-dot': {
+          '0%, 60%, 100%': { opacity: '0.25', transform: 'translateY(0)' },
+          '30%': { opacity: '1', transform: 'translateY(-2px)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 150ms ease-out',
+        'rise-in': 'rise-in 180ms ease-out',
+        'drop-in': 'drop-in 150ms ease-out',
+        'typing-dot': 'typing-dot 1.2s ease-in-out infinite',
       }
     },
   },
