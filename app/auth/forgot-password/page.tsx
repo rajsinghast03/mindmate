@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
             </p>
             <p className="mt-3 text-xs leading-relaxed text-ink-500">
               Signed up with Google? There is no password to reset — use{' '}
-              <Link href="/auth/login" className="text-accent-600 underline-offset-4 hover:underline">
+              <Link href="/auth/login" className="text-accent-700 underline-offset-4 hover:underline">
                 Continue with Google
               </Link>{' '}
               instead.
@@ -101,7 +101,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             {status === 'error' && (
-              <div className="flex items-start gap-2 text-xs font-medium text-accent-600">
+              <div className="flex items-start gap-2 text-xs font-medium text-accent-700">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>

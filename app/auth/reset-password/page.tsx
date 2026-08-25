@@ -169,7 +169,7 @@ export default function ResetPasswordPage() {
             </div>
 
             {status === 'error' && (
-              <div className="flex items-start gap-2 text-xs font-medium text-accent-600">
+              <div className="flex items-start gap-2 text-xs font-medium text-accent-700">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>

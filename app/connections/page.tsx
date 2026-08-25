@@ -87,7 +87,7 @@ export default function ConnectionsPage() {
               Pending {pending.length === 1 ? 'request' : 'requests'}
             </h2>
             {incomingCount > 0 && (
-              <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              <span className="rounded-full bg-accent-700 px-2 py-0.5 text-[10px] font-bold text-white">
                 {incomingCount} awaiting you
               </span>
             )}
@@ -154,7 +154,7 @@ export default function ConnectionsPage() {
                         <time
                           dateTime={convo.lastActivityAt}
                           className={`shrink-0 text-[11px] ${
-                            isUnread ? 'font-semibold text-accent-600' : 'text-ink-400'
+                            isUnread ? 'font-semibold text-accent-700' : 'text-ink-400'
                           }`}
                         >
                           {formatListTimestamp(convo.lastActivityAt)}
@@ -178,7 +178,7 @@ export default function ConnectionsPage() {
                         )}
 
                         {isUnread && (
-                          <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+                          <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent-700 px-1 text-[10px] font-bold text-white">
                             {convo.unreadCount > 99 ? '99+' : convo.unreadCount}
                           </span>
                         )}

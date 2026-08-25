@@ -27,7 +27,7 @@ export function InspirationDrawer({ onSelectSample }: InspirationDrawerProps) {
         className="flex w-full items-center justify-between p-4 sm:px-6 text-left transition-colors hover:bg-paper-100/60 rounded-2xl"
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-100 text-accent-600">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-100 text-accent-700">
             <Lightbulb className="h-4 w-4" />
           </div>
           <div>
@@ -65,7 +65,7 @@ export function InspirationDrawer({ onSelectSample }: InspirationDrawerProps) {
                 {onSelectSample && (
                   <button
                     onClick={() => handleUseSample(sample.text, idx)}
-                    className="flex items-center gap-1 text-xs font-medium text-accent-600 hover:text-accent-700 bg-accent-50 hover:bg-accent-100 px-2.5 py-1 rounded-full transition-colors"
+                    className="flex items-center gap-1 text-xs font-medium text-accent-700 hover:text-accent-800 bg-accent-50 hover:bg-accent-100 px-2.5 py-1 rounded-full transition-colors"
                   >
                     {copiedIndex === idx ? (
                       <>

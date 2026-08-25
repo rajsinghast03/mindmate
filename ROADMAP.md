@@ -239,6 +239,25 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 
 ### Tasks:
 - [ ] Responsive design audit across desktop, tablet, and mobile browsers.
-- [ ] Dark mode / warm paper contrast accessibility check (WCAG AA).
+- [~] WCAG AA contrast audit — done; **coral fixed, greys deliberately not**.
+      9 of 26 real combinations failed. All coral text moved to `accent-700` (5.53:1 on paper,
+      was 3.99) and white-on-coral badges and confirm buttons to an `accent-700` ground (5.76:1,
+      was 3.67). `accent-500` stays the brand colour: the send button is a graphical object, which
+      needs only 3:1.
+
+      Knowingly left failing, as a design decision:
+
+        2.56:1  ink-400 on paper-50   message timestamps, inbox time
+        2.51:1  ink-400 on paper-100  chat and queue timestamps
+        2.33:1  ink-400 on paper-200  input placeholders
+        4.04:1  ink-500 on paper-50   inbox preview prefix, captions, hints
+        3.97:1  ink-500 on paper-100  chat header location, dialog hints
+
+      The paper background only supports three text greys, not four: ink-600 (6.01:1) is the
+      lightest that passes. Nudging ink-500 darker was tested and rejected — at #76726C it still
+      fails on paper-200 and lands 1.4 ratio points from ink-600, i.e. the same colour. Fixing
+      these means moving all small metadata to ink-600 and accepting a visibly darker, less quiet
+      interface. 143 class occurrences across 22 files if it is ever revisited.
+- [ ] Dark mode.
 - [ ] SEO metadata, Open Graph preview tags, and social cards.
 - [ ] Production Vercel configuration and environment verification.

@@ -81,7 +81,7 @@ export function ReportDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
       <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-100 text-accent-600">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-100 text-accent-700">
           <ShieldAlert className="h-5 w-5" />
         </div>
 
@@ -162,7 +162,7 @@ export function ReportDialog({
           </label>
 
           {error && (
-            <div className="mb-4 flex items-start gap-2 text-xs font-medium text-accent-600">
+            <div className="mb-4 flex items-start gap-2 text-xs font-medium text-accent-700">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -180,7 +180,7 @@ export function ReportDialog({
             <button
               type="submit"
               disabled={submitting}
-              className="flex items-center gap-2 rounded-full bg-accent-600 px-5 py-2 text-xs font-medium text-white transition-colors hover:bg-accent-700 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-full bg-accent-700 px-5 py-2 text-xs font-medium text-white transition-colors hover:bg-accent-800 disabled:opacity-60"
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               <span>{submitting ? 'Sending…' : 'Submit report'}</span>

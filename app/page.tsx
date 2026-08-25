@@ -42,7 +42,7 @@ export default function LandingPage() {
 
         <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-medium tracking-tight text-ink-950 leading-[1.12]">
           Find the people who <br className="hidden sm:inline" />
-          <span className="italic font-serif text-accent-600">
+          <span className="italic font-serif text-accent-700">
             think like you.
           </span>
         </h1>

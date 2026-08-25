@@ -74,7 +74,7 @@ export default function PasteProfilePage() {
           Already have an account?{' '}
           <Link
             href="/auth/login"
-            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+            className="font-medium text-accent-700 underline-offset-4 hover:underline"
           >
             Sign in
           </Link>
@@ -129,7 +129,7 @@ export default function PasteProfilePage() {
                     ? 'text-sage-500 font-semibold'
                     : wordCount < CURIOSITY_PROFILE_MIN_WORDS
                     ? 'text-ink-400'
-                    : 'text-accent-600'
+                    : 'text-accent-700'
                 }`}
               >
                 {wordCount} words
@@ -151,7 +151,7 @@ export default function PasteProfilePage() {
           />
 
           {error && (
-            <div className="mt-3 flex items-center gap-2 text-xs font-medium text-accent-600">
+            <div className="mt-3 flex items-center gap-2 text-xs font-medium text-accent-700">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>

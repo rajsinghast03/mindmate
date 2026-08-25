@@ -600,7 +600,7 @@ export default function ChatRoomPage() {
                   setShowMenu(false);
                   setShowReport(true);
                 }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-accent-600 transition-colors hover:bg-accent-50"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-accent-700 transition-colors hover:bg-accent-50"
               >
                 <ShieldAlert className="h-4 w-4 text-accent-500" />
                 <span>Block &amp; report</span>
@@ -687,7 +687,7 @@ export default function ChatRoomPage() {
 
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center py-10 text-center">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-100 text-accent-600">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent-100 text-accent-700">
                 <Sparkles className="h-5 w-5" />
               </div>
               <h4 className="font-serif text-lg font-medium text-ink-950">
@@ -751,7 +751,7 @@ export default function ChatRoomPage() {
                     {msg.failed ? (
                       <button
                         onClick={() => retryFailed(msg)}
-                        className="mt-1 flex items-center gap-1 px-1 text-[10px] font-medium text-accent-600 hover:text-accent-700"
+                        className="mt-1 flex items-center gap-1 px-1 text-[10px] font-medium text-accent-700 hover:text-accent-800"
                       >
                         <RotateCcw className="h-3 w-3" />
                         <span>Not sent — tap to retry</span>
@@ -805,7 +805,7 @@ export default function ChatRoomPage() {
         <div className="shrink-0 border-t border-paper-300 bg-paper-100 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-4">
           {peerTyping && <TypingIndicator name={candidateProfile.displayName} />}
 
-          {sendError && <p className="mb-2 text-xs font-medium text-accent-600">{sendError}</p>}
+          {sendError && <p className="mb-2 text-xs font-medium text-accent-700">{sendError}</p>}
 
           <form onSubmit={handleSend} className="flex items-end gap-2">
             <textarea
@@ -877,7 +877,7 @@ export default function ChatRoomPage() {
               </button>
               <button
                 onClick={handleUnmatch}
-                className="rounded-full bg-accent-600 px-5 py-2 text-xs font-medium text-white hover:bg-accent-700"
+                className="rounded-full bg-accent-700 px-5 py-2 text-xs font-medium text-white hover:bg-accent-800"
               >
                 Confirm Unmatch
               </button>

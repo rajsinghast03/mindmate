@@ -92,7 +92,7 @@ export function GoogleButton({
         <span>{loading ? 'Redirecting…' : label}</span>
       </button>
 
-      {error && <p className="text-center text-xs font-medium text-accent-600">{error}</p>}
+      {error && <p className="text-center text-xs font-medium text-accent-700">{error}</p>}
     </div>
   );
 }

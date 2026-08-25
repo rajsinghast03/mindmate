@@ -261,7 +261,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
           }`}
         >
           <span className="truncate">{item.label}</span>
-          {item.selected && <Check className="h-3.5 w-3.5 shrink-0 text-accent-600" />}
+          {item.selected && <Check className="h-3.5 w-3.5 shrink-0 text-accent-700" />}
         </button>
       ))}
       {items.length > MAX_RENDERED && (
@@ -286,7 +286,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
         <div className="relative">
           <div onClick={() => setOpenDropdown(openDropdown === "country" ? null : "country")} className={triggerClasses(openDropdown === "country")}>
             <span className="flex min-w-0 items-center gap-2.5">
-              <MapPin className="h-4 w-4 shrink-0 text-accent-600" />
+              <MapPin className="h-4 w-4 shrink-0 text-accent-700" />
               <span className="truncate font-serif text-sm font-medium text-ink-950 sm:text-base">
                 {selectedCountry?.name ?? "Country"}
               </span>
@@ -318,7 +318,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
               {!geo ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ink-400" />
               ) : (
-                <MapPin className={`h-4 w-4 shrink-0 ${value?.state ? "text-accent-600" : "text-ink-400"}`} />
+                <MapPin className={`h-4 w-4 shrink-0 ${value?.state ? "text-accent-700" : "text-ink-400"}`} />
               )}
               <span className={`truncate font-serif text-sm font-medium sm:text-base ${value?.state ? "text-ink-950" : "text-ink-400"}`}>
                 {geo ? value?.state ?? "State / Province" : "Loading…"}
@@ -353,7 +353,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
         {/* City */}
         <div className="relative">
           <label className={triggerClasses(openDropdown === "city")}>
-            <MapPin className={`h-4 w-4 shrink-0 ${cityInput ? "text-accent-600" : "text-ink-400"}`} />
+            <MapPin className={`h-4 w-4 shrink-0 ${cityInput ? "text-accent-700" : "text-ink-400"}`} />
             <input
               value={cityInput}
               onFocus={() => setOpenDropdown("city")}

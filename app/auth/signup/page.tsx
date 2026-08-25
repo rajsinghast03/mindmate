@@ -32,7 +32,7 @@ export default function SignupPage() {
           Already have an account?{' '}
           <Link
             href="/auth/login"
-            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+            className="font-medium text-accent-700 underline-offset-4 hover:underline"
           >
             Sign in
           </Link>

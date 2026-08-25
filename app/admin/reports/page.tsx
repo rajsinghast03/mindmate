@@ -95,7 +95,7 @@ export default function AdminReportsPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center">
         <h1 className="mb-2 font-serif text-2xl font-medium text-ink-950">Page not found</h1>
-        <Link href="/discover" className="text-xs text-accent-600 underline-offset-4 hover:underline">
+        <Link href="/discover" className="text-xs text-accent-700 underline-offset-4 hover:underline">
           Back to Discover
         </Link>
       </div>
@@ -165,7 +165,7 @@ export default function AdminReportsPage() {
                   {REPORT_CATEGORY_LABELS[report.category] ?? report.category}
                 </span>
                 {report.reported.totalReports > 1 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-accent-500 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-accent-700 px-2.5 py-0.5 text-[11px] font-bold text-white">
                     <AlertTriangle className="h-3 w-3" />
                     {report.reported.totalReports} reports total
                   </span>

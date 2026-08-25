@@ -36,7 +36,7 @@ export default function LoginPage() {
           New to Mindmate?{" "}
           <Link
             href="/onboarding/paste"
-            className="font-medium text-accent-600 underline-offset-4 hover:underline"
+            className="font-medium text-accent-700 underline-offset-4 hover:underline"
           >
             Create your Curiosity Profile
           </Link>

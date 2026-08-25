@@ -90,7 +90,7 @@ export function Navbar() {
                 <Compass className="h-4 w-4" />
                 <span className="hidden sm:inline">Discover</span>
                 {suggestedCount > 0 && (
-                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-700 px-1 text-[10px] font-bold text-white">
                     {suggestedCount}
                   </span>
                 )}
@@ -109,7 +109,7 @@ export function Navbar() {
                 {connectionsCount > 0 && (
                   <span
                     className={`ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
-                      incomingRequestCount > 0 ? 'bg-accent-500' : 'bg-sage-500'
+                      incomingRequestCount > 0 ? 'bg-accent-700' : 'bg-sage-700'
                     }`}
                   >
                     {connectionsCount}
