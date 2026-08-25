@@ -185,11 +185,11 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     the reader to the bottom mid-scroll.
   - Mobile: `100dvh` sizing, footer suppressed on `/chat/*`, safe-area padding under the composer,
     condensed header, and a collapsible pinned question.
-- [ ] **4.3 Conversation Management**
+- [x] **4.3 Conversation Management**
   - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
   - [x] Block & report dialogs with reason capture (migration 010). Categorised reports with
         optional detail and conversation context; blocking closes the match and locks the thread.
-        Unblock on `/profile`. Report handling (an admin queue) remains open under 5.2.
+        Unblock on `/profile`. The admin queue that handles them landed under 5.2.
 
 ---
 
@@ -210,7 +210,12 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - [x] Reported message content viewable from the queue, keyed on the *report* rather than the
         conversation — an admin can only read a thread someone flagged to them, never an
         arbitrary one.
-  - [ ] Automated toxicity / harassment scanning on messages.
+  - [~] Automated toxicity / harassment scanning on messages — **declined for now**, not
+        pending. It would mean sending every private message to a third-party classifier, which
+        cuts against the product's central promise, and a classifier tuned for abuse fires
+        constantly on the difficult subjects these conversations exist for. Revisit only if
+        reports start arriving faster than they can be read by hand, and prefer flagging for the
+        queue over blocking the send.
 - [ ] **5.3 Auth Abuse Prevention** — deliberately deferred to just before deploy (Phase 6).
       All of it is dashboard configuration plus a widget on three forms; none of it is useful
       while the app is only reachable on localhost, and Turnstile adds the first third-party

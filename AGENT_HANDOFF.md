@@ -111,7 +111,8 @@
 ### Up Next (Phase 4/5 remainder)
 - [x] Typing indicators (ROADMAP 4.2) — private Broadcast channel, RLS-gated in migration 007.
 - [x] Inbox rebuild, server-backed unread state, message pagination (ROADMAP 4.4).
-- [ ] Delivery state / read receipts (ROADMAP 4.2).
+- [ ] Delivery state / read receipts (ROADMAP 4.2) — the last optional feature; everything
+      else outstanding is Phase 6 deploy work.
 - [x] `match_candidate_profiles` locked down (migration 009). It was callable with the
       **publishable key and no session at all** — verified returning 12 rows of raw
       `curiosity_profile` text, the field ARCHITECTURE.md §3 says stays hidden until a match is
