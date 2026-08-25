@@ -283,5 +283,35 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
       these means moving all small metadata to ink-600 and accepting a visibly darker, less quiet
       interface. 143 class occurrences across 22 files if it is ever revisited.
 - [ ] Dark mode.
-- [ ] SEO metadata, Open Graph preview tags, and social cards.
+- [~] SEO metadata, Open Graph and social cards — **built; card rendering unverified until a
+      real domain exists.**
+
+      Verified against a running server: all og:* and twitter:* tags present, og:url and canonical
+      absolute, the image reachable at exactly 1200x630, robots.txt disallowing the seven private
+      prefixes, sitemap listing only publicly reachable pages.
+
+      Still owed, and only possible post-deploy: how the card actually renders in Facebook's
+      Sharing Debugger, LinkedIn's Post Inspector and a WhatsApp message. Those fetch *your* URL,
+      so localhost is invisible to them. Both debuggers also bust their own cache, which matters
+      if the image is ever changed.
+
+      `NEXT_PUBLIC_SITE_URL` must be set to the real origin in production. Left unset it falls
+      back to https://mindmate.site, and a wrong value makes every preview fetch the wrong host.
 - [ ] Production Vercel configuration and environment verification.
+
+      Environment variables Vercel needs, beyond the Supabase and Gemini keys already in
+      `.env.local`:
+        * `ADMIN_EMAILS` — currently local-only, so without it the moderation queue 404s on its
+          own owner in production.
+        * `NEXT_PUBLIC_SITE_URL` — the real origin, for canonical URLs, Open Graph and sitemap.
+
+      Dashboard changes that are not code:
+        * Supabase → Auth → URL Configuration: add the production `/auth/callback` and
+          `/auth/confirm`, and set Site URL to the real domain.
+        * Google Cloud → OAuth client → Authorized redirect URIs: the Supabase callback for the
+          production project.
+        * Supabase → Auth → Rate Limits, and Turnstile (ROADMAP 5.3), sequenced here.
+
+      Run one clean `npm run build` with **no dev server running** before deploying. `next build`
+      and `next dev` share `.next`, and running both produced three separate
+      "Cannot find module for page" failures during development.
