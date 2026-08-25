@@ -207,7 +207,7 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - [x] "Delete Profile & All Data" — now deletes the `auth.users` account too, which cascades
         profile, embedding, matches, conversations, messages, blocks and reports. Previously it
         removed only the profile row and left an account that could still sign in.
-- [ ] **5.2 Safety & Moderation Tools**
+- [x] **5.2 Safety & Moderation Tools** — both shipped items done; scanning declined, not pending.
   - [x] Report handling and moderation view — `/admin/reports`, gated by the `ADMIN_EMAILS`
         allowlist, answering 404 (not 403) to everyone else so the route does not advertise
         itself. Status transitions are service-role only; no client policy grants UPDATE on
