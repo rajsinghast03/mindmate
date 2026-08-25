@@ -112,10 +112,13 @@
 - [x] Typing indicators (ROADMAP 4.2) — private Broadcast channel, RLS-gated in migration 007.
 - [x] Inbox rebuild, server-backed unread state, message pagination (ROADMAP 4.4).
 - [ ] Delivery state / read receipts (ROADMAP 4.2).
-- [ ] `match_candidate_profiles` (migration 005) is `SECURITY DEFINER` with a caller-supplied
-      `target_profile_id` and no ownership guard, and is still granted to `authenticated` — a
-      signed-in user can enumerate other people's `curiosity_profile` text through it. Migration
-      007 does the matching `REVOKE` for `conversation_summaries`; 005's needs the same.
+- [x] `match_candidate_profiles` locked down (migration 009). It was callable with the
+      **publishable key and no session at all** — verified returning 12 rows of raw
+      `curiosity_profile` text, the field ARCHITECTURE.md §3 says stays hidden until a match is
+      mutually connected. Postgres grants EXECUTE to PUBLIC by default, which is where `anon`
+      and `authenticated` inherited it. 009 also sets `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE
+      ON FUNCTIONS FROM PUBLIC`, so the next SECURITY DEFINER function starts closed — this was
+      the second time that default caught us.
 - [ ] Blocks & reports UI — tables and RLS exist, nothing writes to them yet (ROADMAP 4.3 / 5.2).
       The chat overflow menu currently `alert()`s and unmatches instead of recording a report.
 - [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.
