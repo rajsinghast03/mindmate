@@ -155,25 +155,30 @@ export default function ProfileSettingsPage() {
       <div className="space-y-6">
         {/* Profile Card Summary */}
         <div className="rounded-3xl border border-paper-300 bg-paper-50 p-6 sm:p-8 shadow-card">
-          <div className="flex items-start justify-between border-b border-paper-200 pb-5">
-            <div className="flex items-center gap-4">
+          {/* Wraps below `sm` for the same reason the match card does: at 390px the
+              Edit button and the identity block share one row, splitting the button
+              label over two lines and the location over two more. */}
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-paper-200 pb-5 sm:flex-nowrap">
+            <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-paper-200 text-ink-950 font-serif text-2xl font-semibold border border-paper-300/80">
                 {userProfile.displayName.charAt(0)}
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-baseline gap-2">
-                  <h2 className="font-serif text-2xl font-medium text-ink-950">
+                  <h2 className="truncate font-serif text-2xl font-medium text-ink-950">
                     {userProfile.displayName}
                   </h2>
-                  <span className="text-sm text-ink-500 font-sans">{userProfile.age}</span>
+                  <span className="shrink-0 text-sm text-ink-500 font-sans">{userProfile.age}</span>
                 </div>
-                <span className="text-xs text-ink-500">{userProfile.cityOrTimezone}</span>
+                <span className="block truncate text-xs text-ink-500">
+                  {userProfile.cityOrTimezone}
+                </span>
               </div>
             </div>
 
             <Link
               href="/onboarding/paste"
-              className="flex items-center gap-1.5 rounded-full border border-paper-300 bg-paper-100 px-3.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-paper-200 transition-colors"
+              className="shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-full border border-paper-300 bg-paper-100 px-3.5 py-1.5 text-xs font-medium text-ink-700 hover:bg-paper-200 transition-colors"
             >
               <Edit3 className="h-3.5 w-3.5" />
               <span>Edit Profile</span>

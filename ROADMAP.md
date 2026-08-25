@@ -238,7 +238,7 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 **Goal:** Production readiness, performance audit, and deployment on Vercel.
 
 ### Tasks:
-- [~] Responsive audit — **static analysis pass done; real device verification still owed.**
+- [x] Responsive audit — static analysis pass, then a real browser pass at 430/390/360/320.
 
       Found and fixed:
         * `truncate` on a flex child with no `min-w-0` in the location dropdown — flex children
@@ -257,9 +257,21 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
       Clean: no fixed pixel widths, no unprefixed multi-column grids, no `whitespace-nowrap` on
       dynamic content, every other `truncate` correctly inside a `min-w-0` parent.
 
-      Static analysis cannot see layout. Still needs a pass at 360-390px on real pages —
-      `/discover`, `/profile`, onboarding, the landing page and `/admin/reports` — which is the
-      part a browser has to do.
+      Browser pass, measuring `documentElement.scrollWidth > innerWidth` inside a same-origin
+      iframe at each width (media queries respond to the iframe, so it is a true viewport), across
+      every route signed in and signed out. Three more real bugs, none visible to static analysis:
+
+        * **The navbar overflowed for every signed-in user at 360px**, not just admins. The
+          wordmark is 130px of a 328px budget. Now hidden below `sm`; the mark alone remains.
+          Measured: fits at 430 only before the fix, fits at 320 after.
+        * The landing page's sample match card put a `shrink-0` pill opposite an unshrinkable
+          identity block — 23px over at 360, 63px at 320. It had drifted from the real MatchCard,
+          which already width-capped its pill.
+        * `MatchCard` and the `/profile` header had no overflow but were badly cramped: the
+          location wrapped to four lines and the age dropped below the name. Both now wrap the
+          pill/button to their own row below `sm`.
+
+      Final state: zero horizontal overflow on every route at 430, 390, 360 and 320.
 - [~] WCAG AA contrast audit — done; **coral fixed, greys deliberately not**.
       9 of 26 real combinations failed. All coral text moved to `accent-700` (5.53:1 on paper,
       was 3.99) and white-on-coral badges and confirm buttons to an `accent-700` ground (5.76:1,

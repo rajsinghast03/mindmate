@@ -8,6 +8,12 @@ interface LogoProps {
   showWordmark?: boolean;
   className?: string;
   href?: string;
+  /**
+   * Extra classes for the wordmark alone. The navbar uses this to drop it below
+   * `sm`: at 360px the wordmark is 130px of a 328px budget, which pushed the nav
+   * past the viewport for every signed-in user, not just admins.
+   */
+  wordmarkClassName?: string;
 }
 
 const SIZE_MAP = {
@@ -57,6 +63,7 @@ export function Logo({
   showWordmark = true,
   className = "",
   href = "/",
+  wordmarkClassName = "",
 }: LogoProps) {
   const { text } = SIZE_MAP[size];
 
@@ -65,7 +72,7 @@ export function Logo({
       <LogoMark size={size} />
       {showWordmark && (
         <span
-          className={`font-serif font-medium tracking-tight leading-none translate-y-[0.10em] text-ink-950 group-hover:text-accent-700 transition-colors ${text}`}
+          className={`font-serif font-medium tracking-tight leading-none translate-y-[0.10em] text-ink-950 group-hover:text-accent-700 transition-colors ${text} ${wordmarkClassName}`}
         >
           Mindmate
         </span>

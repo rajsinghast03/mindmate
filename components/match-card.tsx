@@ -30,11 +30,14 @@ export function MatchCard({ match, onConnect, onPass, disabled = false }: MatchC
       )}
 
       {/* Header Info */}
-      <div className="flex items-start justify-between gap-4 border-b border-paper-200 pb-5">
-        <div className="flex items-center gap-3.5">
+      {/* Wraps below `sm`: at 390px the pill and the identity block were fighting
+          over the same row, forcing the location onto four lines and the age below
+          the name. On its own line the pill costs one row and nothing is squeezed. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-paper-200 pb-5 sm:flex-nowrap sm:gap-4">
+        <div className="flex min-w-0 items-center gap-3.5">
           {/* Calm Avatar Circle */}
           <Avatar displayName={candidateProfile.displayName} size="lg" />
-          <div>
+          <div className="min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap">
               <h3 className="font-serif text-xl sm:text-2xl font-medium text-ink-950">
                 {candidateProfile.displayName}
@@ -48,15 +51,15 @@ export function MatchCard({ match, onConnect, onPass, disabled = false }: MatchC
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1 text-xs text-ink-500 mt-0.5">
-              <MapPin className="h-3.5 w-3.5 text-ink-400" />
-              <span>{candidateProfile.cityOrTimezone}</span>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-ink-500">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-400" />
+              <span className="truncate">{candidateProfile.cityOrTimezone}</span>
             </div>
           </div>
         </div>
 
         {/* Shared Theme Pill — width-capped so an over-long theme can't break the header */}
-        <span className="inline-flex max-w-[45%] shrink items-start gap-1.5 rounded-full bg-accent-100/90 px-3 py-1 text-xs font-semibold text-accent-700">
+        <span className="inline-flex shrink items-start gap-1.5 rounded-full bg-accent-100/90 px-3 py-1 text-xs font-semibold text-accent-700 sm:max-w-[45%]">
           <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-accent-500" />
           <span className="line-clamp-2">{sharedCuriosity}</span>
         </span>

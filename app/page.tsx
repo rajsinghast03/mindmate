@@ -167,8 +167,8 @@ export default function LandingPage() {
         </div>
 
         <div className="rounded-3xl border border-paper-300 bg-paper-50 p-6 sm:p-8 shadow-card max-w-2xl mx-auto">
-          <div className="flex items-start justify-between gap-4 border-b border-paper-200 pb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-paper-200 pb-4">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-paper-200 text-ink-950 font-serif text-xl font-semibold">
                 K
               </div>
@@ -179,13 +179,13 @@ export default function LandingPage() {
                   </span>
                   <span className="text-sm text-ink-500">29</span>
                 </div>
-                <span className="text-xs text-ink-500">
+                <span className="block truncate text-xs text-ink-500">
                   Bengaluru, Karnataka (IST, UTC+5:30)
                 </span>
               </div>
             </div>
-            <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700 shrink-0">
-              Slow Software & Tactile Craft
+            <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700">
+              Slow Software &amp; Tactile Craft
             </span>
           </div>
 

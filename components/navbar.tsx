@@ -38,7 +38,12 @@ export function Navbar() {
         {/* Brand */}
         {/* Point straight at the app once there's a profile — middleware would
             bounce "/" to /discover anyway, and this avoids the round-trip. */}
-        <Logo size="sm" showWordmark={true} href={signedIn ? '/discover' : '/'} />
+        <Logo
+          size="sm"
+          showWordmark={true}
+          wordmarkClassName="hidden sm:inline"
+          href={signedIn ? '/discover' : '/'}
+        />
 
         {/* Navigation */}
         <nav className="flex items-center gap-1 sm:gap-2">
