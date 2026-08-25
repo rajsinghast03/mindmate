@@ -151,7 +151,9 @@
       conflict can occur. Omitting it broke profile creation outright.
 - [ ] Report queue shows metadata and the reporter's own words, not the reported messages —
       viewing those means an admin path around the messages RLS, which deserves its own design.
-- [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.
+- [ ] Turnstile + Supabase auth rate limits (ROADMAP 5.3) — now about credential stuffing
+      against signInWithPassword and Resend-quota burn, not magic-link email-bombing.
+      **Sequenced with the Phase 6 deploy, not before it.**
 
 ### Completed in Phase 2
 - [x] SQL migration (`supabase/migrations/001_initial_schema.sql`) — profiles, matches, messages, blocks, reports, pgvector, RLS.

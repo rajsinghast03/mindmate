@@ -207,7 +207,10 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
         `reports`, so a reported user cannot bury their own.
   - [ ] Reported message content is not viewable from the queue.
   - [ ] Automated toxicity / harassment scanning on messages.
-- [ ] **5.3 Auth Abuse Prevention**
+- [ ] **5.3 Auth Abuse Prevention** — deliberately deferred to just before deploy (Phase 6).
+      All of it is dashboard configuration plus a widget on three forms; none of it is useful
+      while the app is only reachable on localhost, and Turnstile adds the first third-party
+      script to pages whose pitch is that nothing watches you.
   - Cloudflare Turnstile (or hCaptcha) on the sign-in, sign-up and forgot-password forms via
     Supabase's native CAPTCHA support. The threat changed with the auth rewrite: it is now
     credential stuffing against `signInWithPassword`, plus signup and reset-link spam through
