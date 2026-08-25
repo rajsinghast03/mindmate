@@ -136,11 +136,19 @@
       which *row* you may write, not which *columns*, so a user can PATCH any field on their own
       profile row. Verified: a plain user set their own `is_demo = true` and got a 200. An
       `is_admin` column there would be self-grantable in one request.
-- [ ] **Users can write any column on their own profile** (the finding above). `is_demo` is the
-      live one — a user can mark themselves a demo persona, which makes the server auto-accept
-      connection requests to them. Low severity, self-inflicted, but unintended. Fix is column
-      privileges: `REVOKE UPDATE (is_demo, profile_embedding, user_id, created_at) ON
-      public.profiles FROM authenticated;`
+- [x] **Profile column privileges** (migration 011). RLS has no column granularity, so
+      `WITH CHECK (auth.uid() = user_id)` let a user write *every* field on their own row. Three
+      mattered: `profile_embedding` (what discovery matches on — a hand-written vector can sit
+      close to everyone), `created_at` (read by `calculateFreshnessScore()` in
+      `lib/matching/reranker.ts` — re-stamp it to stay permanently "new"), and `is_demo`
+      (server-side auto-accept). Fixed with column grants; `app/api/profile/route.ts` now writes
+      the embedding on the service role in both POST and PATCH.
+
+      Two Postgres details worth keeping: a **table-level** INSERT/UPDATE grant covers every
+      column, so a column-level REVOKE against it is a no-op — revoke at table level first, then
+      grant back. And `upsert` compiles to `INSERT ... ON CONFLICT DO UPDATE SET user_id = ...`,
+      whose privileges are checked **statically**, so `UPDATE(user_id)` is required even when no
+      conflict can occur. Omitting it broke profile creation outright.
 - [ ] Report queue shows metadata and the reporter's own words, not the reported messages —
       viewing those means an admin path around the messages RLS, which deserves its own design.
 - [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.

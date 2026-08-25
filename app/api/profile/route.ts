@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { SERVICE_ROLE_MISSING, createServiceClient } from '@/lib/supabase/service';
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
-import { isSupabaseConfigured , isAdminEmail } from '@/lib/config';
+import { isAdminEmail, isServiceRoleConfigured, isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 import { generateEmbedding } from '@/lib/matching/embeddings';
 
@@ -63,6 +64,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
   }
 
+  // Saving a profile now writes its embedding on the service role.
+  if (!isServiceRoleConfigured()) {
+    return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -107,9 +113,6 @@ export async function POST(req: NextRequest) {
     cityOrTimezone: String(cityOrTimezone).trim(),
     ianaTimezone: body.ianaTimezone ? String(body.ianaTimezone) : null,
     curiosityProfile: profileValidation.normalizedText,
-    ...(textChanged
-      ? { profileEmbedding: await generateEmbedding(profileValidation.normalizedText) }
-      : {}),
   });
 
   const { data, error } = await supabase
@@ -122,12 +125,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // The vector is written with the service role, never the caller's client.
+  // Migration 011 takes profile_embedding out of what `authenticated` may write:
+  // it is what discovery matches on, so a self-written vector could be crafted to
+  // sit close to everyone.
+  if (textChanged) {
+    await createServiceClient()
+      .from('profiles')
+      .update({ profile_embedding: await generateEmbedding(profileValidation.normalizedText) })
+      .eq('user_id', user.id);
+  }
+
   return NextResponse.json({ profile: dbProfileToProfile(data) });
 }
 
 export async function PATCH(req: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: 'Supabase not configured' }, { status: 503 });
+  }
+
+  // Saving a profile now writes its embedding on the service role.
+  if (!isServiceRoleConfigured()) {
+    return NextResponse.json({ error: SERVICE_ROLE_MISSING }, { status: 503 });
   }
 
   const supabase = await createClient();
@@ -143,6 +162,9 @@ export async function PATCH(req: NextRequest) {
   const body = await requestBody(req);
   if (!body) return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   const updates: Record<string, unknown> = {};
+  // Held aside from `updates` because it goes through the service client below.
+  let newEmbedding: number[] | null = null;
+  let embeddingChanged = false;
 
   if (body.displayName !== undefined) updates.display_name = String(body.displayName).trim();
   if (body.age !== undefined) updates.age = Number(body.age);
@@ -163,7 +185,8 @@ export async function PATCH(req: NextRequest) {
 
     if (!existing || existing.curiosity_profile !== profileValidation.normalizedText) {
       // Null on failure rather than leaving a vector that describes the old text.
-      updates.profile_embedding = await generateEmbedding(profileValidation.normalizedText);
+      newEmbedding = await generateEmbedding(profileValidation.normalizedText);
+      embeddingChanged = true;
     }
   }
   if (body.visibility !== undefined) updates.visibility = body.visibility;
@@ -181,6 +204,13 @@ export async function PATCH(req: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (embeddingChanged) {
+    await createServiceClient()
+      .from('profiles')
+      .update({ profile_embedding: newEmbedding })
+      .eq('user_id', user.id);
   }
 
   return NextResponse.json({ profile: dbProfileToProfile(data) });
