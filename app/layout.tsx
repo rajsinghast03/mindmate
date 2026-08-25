@@ -4,6 +4,7 @@ import './globals.css';
 import { MindmateProvider } from '@/context/mindmate-context';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
+import { Analytics } from '@/components/analytics';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -89,6 +90,7 @@ export default function RootLayout({
           <main className="flex-1 w-full">{children}</main>
           <Footer />
         </MindmateProvider>
+        <Analytics />
       </body>
     </html>
   );

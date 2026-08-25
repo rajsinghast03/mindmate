@@ -313,6 +313,11 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 
       `NEXT_PUBLIC_SITE_URL` must be set to the real origin in production. Left unset it falls
       back to https://mindmate.site, and a wrong value makes every preview fetch the wrong host.
+- [x] Vercel Web Analytics — mounted in the root layout with a `beforeSend` that redacts before
+      anything leaves the browser: `/chat/<uuid>` and `/admin/reports/<uuid>` collapse to their
+      route pattern, and the whole query string is dropped (it carries the one-time onboarding
+      draft token and the `next` redirect target). Cookieless, no cross-site tracking. Only
+      reports from a Vercel deployment; inert locally.
 - [ ] Production Vercel configuration and environment verification.
 
       Environment variables Vercel needs, beyond the Supabase and Gemini keys already in

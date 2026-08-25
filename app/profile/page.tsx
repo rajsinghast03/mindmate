@@ -253,6 +253,12 @@ export default function ProfileSettingsPage() {
               <CheckCircle className="h-4 w-4 text-sage-500 shrink-0" />
               <span>No public indexing or searchable directory feeds.</span>
             </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-sage-500 shrink-0" />
+              <span>
+                Cookieless page-view counts only. Conversation links are never sent to analytics.
+              </span>
+            </div>
           </div>
         </div>
 
