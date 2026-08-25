@@ -159,6 +159,11 @@
       report, not the conversation: an admin cannot request an arbitrary thread, only one that was
       actually flagged, and the reported person's messages are highlighted. Runs on the service
       role since the messages policy scopes reads to the two participants.
+- [x] Presence in a conversation (migration 012). Note the trap: Presence is a *different*
+      realtime extension from Broadcast, so the 007 policies allowing only `'broadcast'` let the
+      channel join and then silently reported nobody — indistinguishable from "they are offline".
+      012 widens both policies to `IN ('broadcast', 'presence')`; verified a non-member still gets
+      CHANNEL_ERROR afterwards.
 - [ ] Account deletion also removes reports filed *about* that person
       (`reports.reported_profile_id` cascades), so someone can clear their moderation history by
       deleting and re-registering. Deletion beating retention is the defensible default for this

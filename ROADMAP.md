@@ -294,7 +294,11 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
       fails on paper-200 and lands 1.4 ratio points from ink-600, i.e. the same colour. Fixing
       these means moving all small metadata to ink-600 and accepting a visibly darker, less quiet
       interface. 143 class occurrences across 22 files if it is ever revisited.
-- [ ] Dark mode.
+- [~] Dark mode — **not wanted.**
+- [x] Presence — "In this conversation", scoped to the open thread (migration 012). Deliberately
+      no global online status and **no last-seen**: presence is ephemeral by construction, nothing
+      is stored, and absence renders as nothing rather than as a report. Rides the private
+      conversation channel already carrying typing and read receipts.
 - [~] SEO metadata, Open Graph and social cards — **built; card rendering unverified until a
       real domain exists.**
 

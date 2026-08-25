@@ -92,8 +92,15 @@ export default function ChatRoomPage() {
   // conversation has ended" at someone who is already on their way out.
   const conversationEnded = isSupabaseMode && seenInContext.current && !listedNow && !leaving;
 
-  const { peerTyping, notifyTyping, notifyStopped, peerReadAt, setPeerReadAt, notifyRead } =
-    useConversationChannel(
+  const {
+    peerTyping,
+    notifyTyping,
+    notifyStopped,
+    peerReadAt,
+    setPeerReadAt,
+    notifyRead,
+    peerOnline,
+  } = useConversationChannel(
       conversationId,
       userProfile?.id ?? null,
       isSupabaseMode && !conversationEnded
@@ -547,7 +554,21 @@ export default function ChatRoomPage() {
                 {candidateProfile.age}
               </span>
             </div>
-            <p className="truncate text-[11px] text-ink-500">{candidateProfile.cityOrTimezone}</p>
+            {/* Only ever shown when they are here. There is no "offline" state and
+                no last-seen: absence should read as nothing, not as a report. */}
+            {peerOnline ? (
+              <p className="flex items-center gap-1.5 text-[11px] text-sage-700">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-sage-500"
+                />
+                <span>In this conversation</span>
+              </p>
+            ) : (
+              <p className="truncate text-[11px] text-ink-500">
+                {candidateProfile.cityOrTimezone}
+              </p>
+            )}
           </div>
         </div>
 

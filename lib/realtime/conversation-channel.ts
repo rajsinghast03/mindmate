@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 
 /**
- * The live side-channel for one conversation: typing, and read receipts.
+ * The live side-channel for one conversation: typing, read receipts, presence.
  *
  * The channel is **private**: migration 007 puts SELECT/INSERT policies on
  * realtime.messages that only pass for the two people in the conversation, so a
@@ -41,6 +41,16 @@ export function useConversationChannel(
    * every resync — this only keeps it current while both are looking.
    */
   const [peerReadAt, setPeerReadAt] = useState<string | null>(null);
+  /**
+   * Whether the other person has this conversation open right now.
+   *
+   * Scoped to the conversation on purpose — this is not a global online status.
+   * It answers "are they here, is it worth waiting a beat", and stops being true
+   * the moment they close the thread. There is deliberately no last-seen: a
+   * timestamp of when someone was last around is ambient pressure, and this app
+   * is meant to feel unhurried.
+   */
+  const [peerOnline, setPeerOnline] = useState(false);
 
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const lastSentAt = useRef(0);
@@ -69,7 +79,9 @@ export function useConversationChannel(
       if (cancelled) return;
 
       channel = supabase.channel(uniqueChannelName(`convo:${conversationId}`), {
-        config: { private: true, broadcast: { self: false } },
+        // presence.key is the viewer's profile id so a reconnect replaces its own
+        // entry rather than appearing as a second person in the room.
+        config: { private: true, broadcast: { self: false }, presence: { key: selfProfileId } },
       });
 
       channel
@@ -90,7 +102,19 @@ export function useConversationChannel(
           // Monotonic: a late-arriving older mark must not walk the receipt back.
           setPeerReadAt(prev => (!prev || readAt > prev ? readAt : prev));
         })
+        .on('presence', { event: 'sync' }, () => {
+          if (!channel) return;
+          const state = channel.presenceState<{ profileId?: string }>();
+          const others = Object.values(state)
+            .flat()
+            .some(entry => entry?.profileId && entry.profileId !== selfProfileId);
+          setPeerOnline(others);
+        })
         .subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            // Announce ourselves only once joined; tracking before that is dropped.
+            void channel?.track({ profileId: selfProfileId });
+          }
           if (status === 'CHANNEL_ERROR') {
             // Not fatal: messaging is unaffected, only the indicator is lost.
             console.warn('[mindmate] typing channel unavailable for', conversationId);
@@ -108,6 +132,7 @@ export function useConversationChannel(
       channelRef.current = null;
       setPeerTyping(false);
       setPeerReadAt(null);
+      setPeerOnline(false);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [enabled, conversationId, selfProfileId]);
@@ -155,5 +180,13 @@ export function useConversationChannel(
     idleTimer.current = setTimeout(notifyStopped, IDLE_STOP_MS);
   }, [send, notifyStopped]);
 
-  return { peerTyping, notifyTyping, notifyStopped, peerReadAt, setPeerReadAt, notifyRead };
+  return {
+    peerTyping,
+    notifyTyping,
+    notifyStopped,
+    peerReadAt,
+    setPeerReadAt,
+    notifyRead,
+    peerOnline,
+  };
 }
