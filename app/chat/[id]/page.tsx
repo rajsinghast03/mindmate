@@ -820,7 +820,7 @@ export default function ChatRoomPage() {
               onBlur={notifyStopped}
               onKeyDown={handleKeyDown}
               placeholder={`Message ${candidateProfile.displayName}…`}
-              className="max-h-[132px] min-h-[44px] flex-1 resize-none rounded-2xl border border-paper-300 bg-paper-50 px-3.5 py-2.5 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+              className="max-h-[132px] min-h-[44px] flex-1 resize-none rounded-2xl border border-paper-300 bg-paper-50 px-3.5 py-2.5 text-sm text-ink-950 placeholder:text-ink-600 focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
             />
             <button
               type="submit"

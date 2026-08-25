@@ -245,11 +245,14 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
       was 3.67). `accent-500` stays the brand colour: the send button is a graphical object, which
       needs only 3:1.
 
+      Input placeholders were also fixed (2.33:1 -> 5.48:1): unreadable placeholder text is a
+      usability problem before it is a compliance one, and ink-600 still reads as clearly lighter
+      than a typed value (5.91:1 against 17.39:1).
+
       Knowingly left failing, as a design decision:
 
         2.56:1  ink-400 on paper-50   message timestamps, inbox time
         2.51:1  ink-400 on paper-100  chat and queue timestamps
-        2.33:1  ink-400 on paper-200  input placeholders
         4.04:1  ink-500 on paper-50   inbox preview prefix, captions, hints
         3.97:1  ink-500 on paper-100  chat header location, dialog hints
 

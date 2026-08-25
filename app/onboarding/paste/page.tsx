@@ -147,7 +147,7 @@ export default function PasteProfilePage() {
               if (error) setError(null);
             }}
             placeholder="I keep returning to the question of... Lately, I'm exploring... In conversations, I love talking about... I hope to meet someone who..."
-            className="w-full bg-transparent font-serif text-base sm:text-lg leading-relaxed text-ink-950 placeholder:text-ink-400 placeholder:font-sans placeholder:text-sm focus:outline-none resize-y"
+            className="w-full bg-transparent font-serif text-base sm:text-lg leading-relaxed text-ink-950 placeholder:text-ink-600 placeholder:font-sans placeholder:text-sm focus:outline-none resize-y"
           />
 
           {error && (

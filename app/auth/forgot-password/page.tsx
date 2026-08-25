@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
                     if (status === 'error') setStatus('idle');
                   }}
                   placeholder="you@example.com"
-                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-4 text-base text-ink-950 transition-all placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-4 text-base text-ink-950 transition-all placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
                 />
               </div>
             </div>

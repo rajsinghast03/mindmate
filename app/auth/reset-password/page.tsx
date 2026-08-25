@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
                     if (status === 'error') setStatus('idle');
                   }}
                   placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-11 text-base text-ink-950 transition-all placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-11 text-base text-ink-950 transition-all placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
                 />
                 <button
                   type="button"
@@ -163,7 +163,7 @@ export default function ResetPasswordPage() {
                     if (status === 'error') setStatus('idle');
                   }}
                   placeholder="Type it once more"
-                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-4 text-base text-ink-950 transition-all placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+                  className="w-full rounded-xl border border-paper-300 bg-paper-100/60 py-3 pl-10 pr-4 text-base text-ink-950 transition-all placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
                 />
               </div>
             </div>

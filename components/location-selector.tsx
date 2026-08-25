@@ -297,7 +297,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
             <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-paper-300 bg-paper-50 p-3 shadow-lifted animate-in fade-in zoom-in-95 duration-150">
               <div className="relative mb-2">
                 {searchIcon}
-                <input autoFocus value={countryQuery} onChange={(event) => setCountryQuery(event.target.value)} placeholder="Search countries…" className="w-full rounded-xl border border-paper-300 bg-paper-100/80 py-2 pl-9 pr-3 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+                <input autoFocus value={countryQuery} onChange={(event) => setCountryQuery(event.target.value)} placeholder="Search countries…" className="w-full rounded-xl border border-paper-300 bg-paper-100/80 py-2 pl-9 pr-3 text-sm text-ink-950 placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
               </div>
               {renderOptions(
                 filteredCountries.map((country) => ({
@@ -320,7 +320,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
               ) : (
                 <MapPin className={`h-4 w-4 shrink-0 ${value?.state ? "text-accent-700" : "text-ink-400"}`} />
               )}
-              <span className={`truncate font-serif text-sm font-medium sm:text-base ${value?.state ? "text-ink-950" : "text-ink-400"}`}>
+              <span className={`truncate font-serif text-sm font-medium sm:text-base ${value?.state ? "text-ink-950" : "text-ink-600"}`}>
                 {geo ? value?.state ?? "State / Province" : "Loading…"}
               </span>
             </span>
@@ -334,7 +334,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
                 <>
                   <div className="relative mb-2">
                     {searchIcon}
-                    <input autoFocus value={stateQuery} onChange={(event) => setStateQuery(event.target.value)} placeholder="Search states / provinces…" className="w-full rounded-xl border border-paper-300 bg-paper-100/80 py-2 pl-9 pr-3 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
+                    <input autoFocus value={stateQuery} onChange={(event) => setStateQuery(event.target.value)} placeholder="Search states / provinces…" className="w-full rounded-xl border border-paper-300 bg-paper-100/80 py-2 pl-9 pr-3 text-sm text-ink-950 placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
                   </div>
                   {renderOptions(
                     filteredStates.map(([code, name]) => ({
@@ -363,7 +363,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
                 if (!event.target.value.trim()) clearCity();
               }}
               placeholder={bucket ? "City (optional)" : "City — pick a state first"}
-              className="min-w-0 flex-1 bg-transparent font-serif text-sm font-medium text-ink-950 placeholder:text-ink-400 focus:outline-none sm:text-base"
+              className="min-w-0 flex-1 bg-transparent font-serif text-sm font-medium text-ink-950 placeholder:text-ink-600 focus:outline-none sm:text-base"
             />
             <ChevronDown className={`h-4 w-4 shrink-0 text-ink-400 transition-transform ${openDropdown === "city" ? "rotate-180" : ""}`} />
           </label>

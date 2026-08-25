@@ -140,7 +140,7 @@ export function ReportDialog({
             maxLength={REPORT_DETAILS_MAX_LENGTH}
             onChange={e => setDetails(e.target.value)}
             placeholder="What happened, in your own words."
-            className="mb-4 w-full resize-none rounded-xl border border-paper-300 bg-paper-100/60 p-3 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
+            className="mb-4 w-full resize-none rounded-xl border border-paper-300 bg-paper-100/60 p-3 text-sm text-ink-950 placeholder:text-ink-600 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
           />
 
           <label className="mb-5 flex cursor-pointer items-start gap-2.5 rounded-xl border border-paper-300 bg-paper-100/60 p-3">
