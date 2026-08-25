@@ -9,7 +9,7 @@ import { Sparkles, MessageSquare, User, Compass, LogOut, ArrowRight, ShieldAlert
 
 export function Navbar() {
   const pathname = usePathname();
-  const { userProfile, conversations, matches, isSupabaseMode, authUser, isLoaded, signOut } =
+  const { userProfile, conversations, matches, isSupabaseMode, authUser, isSessionLoaded, signOut } =
     useMindmate();
 
   // Having an account and having finished onboarding are different things, and the
@@ -42,10 +42,11 @@ export function Navbar() {
 
         {/* Navigation */}
         <nav className="flex items-center gap-1 sm:gap-2">
-          {!isLoaded ? (
+          {!isSessionLoaded ? (
             // Neither branch until the session is known. Rendering the logged-out one
-            // meant "Sign in" flashed on every load and every tab return, for as long
-            // as /api/profile took. Fixed width so nothing shifts when it resolves.
+            // meant "Sign in" flashed on every load and every tab return. Keyed on
+            // isSessionLoaded rather than isLoaded so the nav is not also waiting on
+            // match state, which it does not use and which is much the slower call.
             <div
               aria-hidden="true"
               className="h-8 w-28 animate-pulse rounded-full bg-paper-200 sm:w-40"

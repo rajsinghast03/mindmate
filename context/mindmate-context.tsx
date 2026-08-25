@@ -36,6 +36,8 @@ interface MindmateContextType {
   conversations: Conversation[];
   passedProfileIds: string[];
   isLoaded: boolean;
+  /** True once the session is known, whether or not match state has arrived. */
+  isSessionLoaded: boolean;
   saveProfile: (
     displayName: string,
     age: number,
@@ -107,6 +109,12 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [passedProfileIds, setPassedProfileIds] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  /**
+   * Just "we know who you are" — set as soon as /api/profile lands, without
+   * waiting for match state. `isLoaded` still means everything is ready and is
+   * what the pages gate on; this is for chrome that only needs the session.
+   */
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   // Guards the top-up call so a re-render storm can't fire several generations.
   const generating = useRef(false);
@@ -216,15 +224,20 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     const load = async () => {
       try {
         if (SUPABASE_MODE) {
-          // Both in flight at once. Nothing renders until isLoaded, so chaining
-          // these cost the user the sum of two round trips to Supabase rather
-          // than the slower of them. /api/matches resolves the viewer itself and
-          // answers with empty arrays when there is no profile yet, so asking
-          // before we know whether one exists is safe.
-          const [res, matchRes] = await Promise.all([
-            fetch('/api/profile'),
-            fetch('/api/matches'),
-          ]);
+          // Both start together, but they are consumed separately on purpose.
+          //
+          // The navbar only needs to know who you are, which is /api/profile.
+          // Awaiting both before releasing anything meant the nav sat in its
+          // skeleton for the slower of the two — and /api/matches is the slower
+          // one, by a lot on a cold start.
+          const profileRequest = fetch('/api/profile');
+          const matchRequest = fetch('/api/matches');
+          // Claimed below; the guard stops an early failure surfacing as an
+          // unhandled rejection while we are still waiting on the profile.
+          matchRequest.catch(() => {});
+
+          let hasProfile = false;
+          const res = await profileRequest;
 
           if (res.ok) {
             const data = await res.json();
@@ -238,8 +251,16 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
             }
             if (data.profile) {
               setUserProfile(data.profile);
-              if (matchRes.ok) applyState(await matchRes.json());
+              hasProfile = true;
             }
+          }
+
+          // The nav can settle now, without waiting for match state.
+          setIsSessionLoaded(true);
+
+          if (hasProfile) {
+            const matchRes = await matchRequest;
+            if (matchRes.ok) applyState(await matchRes.json());
           }
           return;
         }
@@ -255,6 +276,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.error('Failed to load Mindmate state:', e);
       } finally {
+        setIsSessionLoaded(true);
         setIsLoaded(true);
       }
     };
@@ -645,6 +667,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         conversations,
         passedProfileIds,
         isLoaded,
+        isSessionLoaded,
         saveProfile,
         connectMatch,
         passMatch,
