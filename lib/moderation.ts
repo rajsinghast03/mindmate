@@ -32,3 +32,11 @@ export const REPORT_CATEGORY_VALUES: readonly string[] = REPORT_CATEGORIES.map(c
 
 /** Matches the length cap enforced in app/api/reports/route.ts. */
 export const REPORT_DETAILS_MAX_LENGTH = 2000;
+
+/** Mirrors the reports_status_check constraint in migration 010. */
+export const REPORT_STATUSES: readonly string[] = ['open', 'reviewed', 'actioned', 'dismissed'];
+
+/** Human labels for the queue, keyed by the stored value. */
+export const REPORT_CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  REPORT_CATEGORIES.map(c => [c.value, c.label])
+);

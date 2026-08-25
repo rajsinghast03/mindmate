@@ -23,6 +23,8 @@ export type AuthUser = {
   email: string;
   /** Provider-supplied display name. Google sets it; password signups do not. */
   fullName?: string | null;
+  /** Whether this address is on the moderation allowlist (server-evaluated). */
+  isAdmin?: boolean;
 };
 
 interface MindmateContextType {
@@ -231,6 +233,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
                 id: data.user.id,
                 email: data.user.email,
                 fullName: data.user.fullName ?? null,
+                isAdmin: data.user.isAdmin === true,
               });
             }
             if (data.profile) {

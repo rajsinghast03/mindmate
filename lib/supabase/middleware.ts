@@ -11,6 +11,9 @@ const PROTECTED_PREFIXES = [
   '/chat',
   '/profile',
   '/auth/reset-password',
+  // A session is the floor, not the gate — the admin allowlist is checked in the
+  // route and the page, both of which answer 404 rather than 403.
+  '/admin',
 ];
 
 /** Ways in. A signed-in user has no business on any of them. */

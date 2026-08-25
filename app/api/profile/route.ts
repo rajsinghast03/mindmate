@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
-import { isSupabaseConfigured } from '@/lib/config';
+import { isSupabaseConfigured , isAdminEmail } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 import { generateEmbedding } from '@/lib/matching/embeddings';
 
@@ -51,7 +51,9 @@ export async function GET() {
 
   return NextResponse.json({
     mode: 'supabase',
-    user: { id: user.id, email: user.email, fullName },
+    // isAdmin, not the allowlist itself — the client needs to know whether to show
+    // the queue link, not who else can open it.
+    user: { id: user.id, email: user.email, fullName, isAdmin: isAdminEmail(user.email) },
     profile: data ? dbProfileToProfile(data) : null,
   });
 }

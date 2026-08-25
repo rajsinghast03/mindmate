@@ -201,8 +201,12 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - "Pause Discovery" mode (temporarily hide profile from new match pools while keeping active chats).
   - "Delete Profile & All Data" (hard delete profile, embeddings, messages, and account).
 - [ ] **5.2 Safety & Moderation Tools**
-  - Automated toxicity / harassment scanning on messages.
-  - Report handling endpoint and admin moderation views.
+  - [x] Report handling and moderation view — `/admin/reports`, gated by the `ADMIN_EMAILS`
+        allowlist, answering 404 (not 403) to everyone else so the route does not advertise
+        itself. Status transitions are service-role only; no client policy grants UPDATE on
+        `reports`, so a reported user cannot bury their own.
+  - [ ] Reported message content is not viewable from the queue.
+  - [ ] Automated toxicity / harassment scanning on messages.
 - [ ] **5.3 Auth Abuse Prevention**
   - Cloudflare Turnstile (or hCaptcha) on the sign-in, sign-up and forgot-password forms via
     Supabase's native CAPTCHA support. The threat changed with the auth rewrite: it is now

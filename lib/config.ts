@@ -80,6 +80,31 @@ export function isAiConfigured(): boolean {
 }
 
 /** True when Supabase env vars are set — enables cloud auth + profile persistence. */
+/**
+ * Addresses allowed into the moderation queue, comma-separated.
+ *
+ * Deliberately an env var rather than a flag on `profiles`. The "Users manage own
+ * profile" policy from migration 001 is FOR ALL with WITH CHECK (auth.uid() =
+ * user_id) — that gates which *row* you may write, not which *columns*, so a user
+ * can PATCH any field on their own profile. An is_admin column there would be
+ * self-grantable in a single request. An env var has no row to compromise.
+ */
+export function getAdminEmails(): string[] {
+  const raw = process.env.ADMIN_EMAILS;
+  if (!raw || PLACEHOLDER_PATTERN.test(raw)) return [];
+  return raw
+    .split(',')
+    .map(entry => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const admins = getAdminEmails();
+  // No admins configured means no moderation queue, not an open one.
+  return admins.length > 0 && admins.includes(email.trim().toLowerCase());
+}
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(getSupabaseUrl() && getSupabasePublishableKey());
 }

@@ -128,8 +128,21 @@
       when `reporter_profile_id IS NULL` and so allowed unlimited unattributable reports against
       anyone; and added `category`, `status` and `conversation_id`, without which a report was
       untriageable.
-- [ ] **Nobody reads the report queue.** Reports land with `status='open'` and there is no admin
-      view — the moderation loop is open at the far end (ROADMAP 5.2).
+- [x] **Report queue** at `/admin/reports` (ROADMAP 5.2). Filter by status, mark
+      reviewed/actioned/dismissed, repeat-offender counts per reported profile.
+
+      Access is an **`ADMIN_EMAILS` env var**, not a flag on `profiles`. The "Users manage own
+      profile" policy from 001 is `FOR ALL` with `WITH CHECK (auth.uid() = user_id)` — that gates
+      which *row* you may write, not which *columns*, so a user can PATCH any field on their own
+      profile row. Verified: a plain user set their own `is_demo = true` and got a 200. An
+      `is_admin` column there would be self-grantable in one request.
+- [ ] **Users can write any column on their own profile** (the finding above). `is_demo` is the
+      live one — a user can mark themselves a demo persona, which makes the server auto-accept
+      connection requests to them. Low severity, self-inflicted, but unintended. Fix is column
+      privileges: `REVOKE UPDATE (is_demo, profile_embedding, user_id, created_at) ON
+      public.profiles FROM authenticated;`
+- [ ] Report queue shows metadata and the reporter's own words, not the reported messages —
+      viewing those means an admin path around the messages RLS, which deserves its own design.
 - [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.
 
 ### Completed in Phase 2

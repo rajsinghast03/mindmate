@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { Logo } from '@/components/logo';
-import { Sparkles, MessageSquare, User, Compass, LogOut, ArrowRight } from 'lucide-react';
+import { Sparkles, MessageSquare, User, Compass, LogOut, ArrowRight, ShieldAlert } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -116,6 +116,21 @@ export function Navbar() {
                   </span>
                 )}
               </Link>
+
+              {authUser?.isAdmin && (
+                <Link
+                  href="/admin/reports"
+                  title="Report queue"
+                  aria-label="Report queue"
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3.5 ${
+                    pathname.startsWith('/admin')
+                      ? 'bg-paper-200 text-ink-950 font-semibold shadow-sm'
+                      : 'text-ink-600 hover:bg-paper-200/60 hover:text-ink-900'
+                  }`}
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                </Link>
+              )}
 
               <Link
                 href="/profile"
