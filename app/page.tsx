@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 import {
   Brain,
   Sparkles,
@@ -10,30 +10,29 @@ import {
   Lock,
   EyeOff,
   Users,
-} from 'lucide-react';
+} from "lucide-react";
 
 const HOW_IT_WORKS = [
   {
-    step: '01',
-    title: 'Ask AI for your Curiosity Profile',
-    desc: 'Use our privacy-safe prompt in ChatGPT or Claude. In ~100 words, it captures the questions, crafts, and themes you keep returning to—nothing personal, nothing identifying.',
+    step: "01",
+    title: "Ask AI for your Curiosity Profile",
+    desc: "Use our privacy-safe prompt in ChatGPT or Claude. In ~100 words, it captures the questions, crafts, and themes you keep returning to—nothing personal, nothing identifying.",
   },
   {
-    step: '02',
-    title: 'Paste, Edit & Approve',
-    desc: 'You review every single word before it goes anywhere. Add only a display name, age (18+), and broad location. Your raw text stays hidden until you both choose to connect.',
+    step: "02",
+    title: "Paste, Edit & Approve",
+    desc: "You review every single word before it goes anywhere. Add only a display name, age (18+), and broad location. Your raw text stays hidden until you both choose to connect.",
   },
   {
-    step: '03',
-    title: 'AI Finds Minds Like Yours',
-    desc: 'Our AI reads the depth of your written curiosities and introduces you to 1–3 people who genuinely resonate, with a clear explanation of why—and a tailored opening question to start.',
+    step: "03",
+    title: "AI Finds Minds Like Yours",
+    desc: "Our AI reads the depth of your written curiosities and introduces you to 1–3 people who genuinely resonate, with a clear explanation of why—and a tailored opening question to start.",
   },
 ];
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col items-center justify-center">
-
       {/* ── Hero Section ── */}
       <section className="relative w-full max-w-4xl px-4 pt-16 pb-14 sm:px-6 sm:pt-24 sm:pb-20 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-paper-300 bg-paper-50 px-4 py-1.5 text-xs font-semibold text-ink-800 shadow-sm mb-6">
@@ -42,9 +41,10 @@ export default function LandingPage() {
         </div>
 
         <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl font-medium tracking-tight text-ink-950 leading-[1.12]">
-          Find the people who{' '}
-          <br className="hidden sm:inline" />
-          <span className="italic font-serif text-accent-600">think like you.</span>
+          Find the people who <br className="hidden sm:inline" />
+          <span className="italic font-serif text-accent-600">
+            think like you.
+          </span>
         </h1>
 
         <p className="mx-auto mt-5 max-w-2xl font-serif text-xl sm:text-2xl text-ink-900 font-medium leading-snug">
@@ -67,16 +67,6 @@ export default function LandingPage() {
             How it works &darr;
           </a>
         </div>
-
-        <p className="mt-5 text-sm text-ink-600">
-          Already have an account?{' '}
-          <Link
-            href="/auth/login"
-            className="font-medium text-accent-600 underline-offset-4 hover:underline"
-          >
-            Sign in
-          </Link>
-        </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-ink-500">
           <div className="flex items-center gap-1.5">
@@ -104,11 +94,15 @@ export default function LandingPage() {
             <div className="pl-5 sm:pl-6 text-center">
               <Sparkles className="mx-auto h-5 w-5 text-accent-500 mb-4" />
               <p className="font-serif text-xl sm:text-2xl md:text-3xl text-ink-950 font-medium leading-snug italic">
-                &ldquo;Today, AI knows you better than most people do.<br className="hidden sm:inline" />
-                That&rsquo;s exactly why we use it—to find the ones who truly get you.&rdquo;
+                &ldquo;Today, AI knows you better than most people do.
+                <br className="hidden sm:inline" />
+                That&rsquo;s exactly why we use it—to find the ones who truly
+                get you.&rdquo;
               </p>
               <p className="mt-4 text-sm sm:text-base text-ink-600 font-sans leading-relaxed max-w-xl mx-auto">
-                Mindmate takes the curiosity profile you&rsquo;ve already shared with AI and uses it to introduce you to people whose minds genuinely resonate with yours. No photos. No bios. Just thought.
+                Mindmate takes the curiosity profile you&rsquo;ve already shared
+                with AI and uses it to introduce you to people whose minds
+                genuinely resonate with yours. No photos. No bios. Just thought.
               </p>
             </div>
           </div>
@@ -129,13 +123,17 @@ export default function LandingPage() {
               How Mindmate works
             </h2>
             <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-md mx-auto">
-              From written thoughts to meaningful connections in three calm steps.
+              From written thoughts to meaningful connections in three calm
+              steps.
             </p>
           </div>
 
           <ol className="space-y-6">
             {HOW_IT_WORKS.map((item) => (
-              <li key={item.step} className="flex items-start gap-5 rounded-2xl border border-paper-300 bg-paper-100/60 p-6 shadow-soft">
+              <li
+                key={item.step}
+                className="flex items-start gap-5 rounded-2xl border border-paper-300 bg-paper-100/60 p-6 shadow-soft"
+              >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink-950 text-paper-50 font-serif font-bold text-base">
                   {item.step}
                 </div>
@@ -163,7 +161,8 @@ export default function LandingPage() {
             Not just a match — a resonance
           </h2>
           <p className="text-ink-600 text-sm sm:text-base mt-2 max-w-lg mx-auto">
-            You always know <em>why</em> two minds connect. No guessing. No awkward small talk.
+            You always know <em>why</em> two minds connect. No guessing. No
+            awkward small talk.
           </p>
         </div>
 
@@ -175,10 +174,14 @@ export default function LandingPage() {
               </div>
               <div>
                 <div className="flex items-baseline gap-2">
-                  <span className="font-serif text-xl font-medium text-ink-950">Kabir</span>
+                  <span className="font-serif text-xl font-medium text-ink-950">
+                    Kabir
+                  </span>
                   <span className="text-sm text-ink-500">29</span>
                 </div>
-                <span className="text-xs text-ink-500">Bengaluru, Karnataka (IST, UTC+5:30)</span>
+                <span className="text-xs text-ink-500">
+                  Bengaluru, Karnataka (IST, UTC+5:30)
+                </span>
               </div>
             </div>
             <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700 shrink-0">
@@ -191,7 +194,9 @@ export default function LandingPage() {
               Why your minds connect
             </div>
             <p className="font-serif text-lg leading-relaxed text-ink-900 bg-paper-100/80 p-4 rounded-2xl border border-paper-200/80 italic">
-              &ldquo;You both return to making things thoughtfully, escaping superficial small talk, and noticing the quiet details in everyday life.&rdquo;
+              &ldquo;You both return to making things thoughtfully, escaping
+              superficial small talk, and noticing the quiet details in everyday
+              life.&rdquo;
             </p>
 
             <div className="rounded-2xl border border-dashed border-paper-300 bg-paper-100/40 p-3.5">
@@ -199,7 +204,8 @@ export default function LandingPage() {
                 Suggested Opening Question
               </span>
               <p className="font-serif text-base text-ink-950 font-medium">
-                &ldquo;What would you try building or exploring this year if you knew nobody would judge you for being a beginner?&rdquo;
+                &ldquo;What would you try building or exploring this year if you
+                knew nobody would judge you for being a beginner?&rdquo;
               </p>
             </div>
           </div>
@@ -226,9 +232,12 @@ export default function LandingPage() {
             <div className="flex items-start gap-3.5 p-4">
               <EyeOff className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">Zero Photo Bias</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">
+                  Zero Photo Bias
+                </h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  Never be judged or rejected by a snapshot. Connect through what you think, craft, and explore.
+                  Never be judged or rejected by a snapshot. Connect through
+                  what you think, craft, and explore.
                 </p>
               </div>
             </div>
@@ -236,9 +245,12 @@ export default function LandingPage() {
             <div className="flex items-start gap-3.5 p-4">
               <Lock className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">Mutual Consent Only</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">
+                  Mutual Consent Only
+                </h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  No one can message you or view your approved profile until you have both explicitly chosen to connect.
+                  No one can message you or view your approved profile until you
+                  have both explicitly chosen to connect.
                 </p>
               </div>
             </div>
@@ -246,9 +258,12 @@ export default function LandingPage() {
             <div className="flex items-start gap-3.5 p-4">
               <ShieldCheck className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">Zero Scraping</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">
+                  Zero Scraping
+                </h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  We never access your ChatGPT account or raw chat logs. You paste and approve only what you choose to share.
+                  We never access your ChatGPT account or raw chat logs. You
+                  paste and approve only what you choose to share.
                 </p>
               </div>
             </div>
@@ -256,9 +271,13 @@ export default function LandingPage() {
             <div className="flex items-start gap-3.5 p-4">
               <Users className="h-5 w-5 text-accent-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-serif text-lg font-medium text-ink-950">Fluid Connections</h4>
+                <h4 className="font-serif text-lg font-medium text-ink-950">
+                  Fluid Connections
+                </h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  Whether it becomes a co-founding team, a creative project, an intellectual friendship, or a collaborative hobby—connections evolve on your terms.
+                  Whether it becomes a co-founding team, a creative project, an
+                  intellectual friendship, or a collaborative hobby—connections
+                  evolve on your terms.
                 </p>
               </div>
             </div>

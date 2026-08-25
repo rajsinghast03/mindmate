@@ -29,7 +29,7 @@ export default function DiscoverPage() {
   const [pendingAction, setPendingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Resume onboarding if magic link landed on discover with a saved draft
+  // Resume onboarding for anyone who arrived here signed in but without a profile
   useEffect(() => {
     if (!isLoaded || userProfile) return;
     if (isSupabaseMode && authUser) {
@@ -37,7 +37,12 @@ export default function DiscoverPage() {
     }
   }, [isLoaded, userProfile, isSupabaseMode, authUser, router]);
 
-  if (!isLoaded) {
+  // The redirect above runs in an effect, i.e. after a paint, so a signed-in user
+  // with no profile would see the "create a profile" screen flash by on their way
+  // to /auth/complete. Hold the spinner instead.
+  const resumingOnboarding = isSupabaseMode && !!authUser && !userProfile;
+
+  if (!isLoaded || resumingOnboarding) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">

@@ -1,3 +1,15 @@
+<!--
+  Mindmate — Supabase auth email template.
+
+  Paste into Supabase Dashboard → Authentication → Emails → Templates.
+
+  The link is token-hash based on purpose. Supabase's default confirmation-URL
+  variable lands on /auth/callback with a ?code, and @supabase/ssr uses PKCE — the code
+  verifier lives in the browser that started the flow, so opening the mail on a
+  phone would fail. verifyOtp carries no verifier and works from any browser.
+
+  Keep the /auth/confirm URL and its query parameters exactly as they are.
+-->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
@@ -52,10 +64,10 @@
                 <tr>
                   <td align="center" style="padding:44px 44px 8px 44px;">
                     <h1 style="margin:0; font-family:'Newsreader', Georgia, 'Times New Roman', serif; font-size:30px; line-height:38px; font-weight:500; letter-spacing:-0.02em; color:#141413;">
-                      One tap and you&rsquo;re&nbsp;in<span style="color:#E05A47;">.</span>
+                      Confirm your&nbsp;email<span style="color:#E05A47;">.</span>
                     </h1>
                     <p style="margin:14px 0 0 0; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:15px; line-height:24px; color:#68655E;">
-                      No passwords, no hassle &mdash; just a quiet door back to the conversations worth having.
+                      One click and your Curiosity Profile goes live &mdash; then we&rsquo;ll introduce you to minds tuned to yours.
                     </p>
                   </td>
                 </tr>
@@ -66,11 +78,11 @@
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" bgcolor="#E05A47" style="border-radius:9999px;">
-                          <a href="{{ .ConfirmationURL }}"
+                          <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup&amp;next={{ .RedirectTo }}"
                              target="_blank"
                              style="display:inline-block; padding:15px 42px; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:16px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:9999px; background-color:#E05A47; mso-padding-alt:0;">
                             <!--[if mso]><i style="letter-spacing:42px;mso-font-width:-100%;">&nbsp;</i><![endif]-->
-                            <span style="mso-text-raise:6px;">Open Mindmate</span><!--[if mso]><i style="letter-spacing:42px;mso-font-width:-100%;">&nbsp;</i><![endif]-->
+                            <span style="mso-text-raise:6px;">Confirm my email</span><!--[if mso]><i style="letter-spacing:42px;mso-font-width:-100%;">&nbsp;</i><![endif]-->
                           </a>
                         </td>
                       </tr>
@@ -83,7 +95,7 @@
                   <td align="center" style="padding:12px 44px 34px 44px;">
                     <p style="margin:0; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size:13px; line-height:20px; color:#9E9A90;">
                       Button not working? Paste this link into your browser:<br />
-                      <a href="{{ .ConfirmationURL }}" style="color:#D4513E; text-decoration:underline; word-break:break-all;">{{ .ConfirmationURL }}</a>
+                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup&amp;next={{ .RedirectTo }}" style="color:#D4513E; text-decoration:underline; word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=signup&amp;next={{ .RedirectTo }}</a>
                     </p>
                   </td>
                 </tr>

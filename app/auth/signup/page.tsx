@@ -1,44 +1,40 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { ShieldCheck, ArrowLeft } from "lucide-react";
-import { AuthLoginClient } from "./auth-login-client";
+import { Suspense } from 'react';
+import Link from 'next/link';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { AuthSignupClient } from './auth-signup-client';
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-6 sm:px-6 sm:py-8">
       <Link
-        href="/"
+        href="/onboarding/review"
         className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-ink-600 transition-colors hover:text-ink-950"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        <span>Back to home</span>
+        <span>Back to your profile</span>
       </Link>
 
       <div className="mb-5 text-center">
         <h1 className="font-serif text-3xl font-medium tracking-tight text-ink-950">
-          Sign in to Mindmate
+          Create your account
         </h1>
         <p className="mt-2 text-sm text-ink-600">
-          Continue with Google, or use the email and password you signed up with.
+          One last step — your Curiosity Profile is saved and waiting.
         </p>
       </div>
 
       <div className="rounded-3xl border border-paper-300 bg-paper-50 p-5 shadow-card sm:p-6">
-        <Suspense
-          fallback={
-            <div className="h-72 animate-pulse rounded-xl bg-paper-200" />
-          }
-        >
-          <AuthLoginClient />
+        <Suspense fallback={<div className="h-80 animate-pulse rounded-xl bg-paper-200" />}>
+          <AuthSignupClient />
         </Suspense>
 
         <p className="mt-5 text-center text-xs text-ink-600">
-          New to Mindmate?{" "}
+          Already have an account?{' '}
           <Link
-            href="/onboarding/paste"
+            href="/auth/login"
             className="font-medium text-accent-600 underline-offset-4 hover:underline"
           >
-            Create your Curiosity Profile
+            Sign in
           </Link>
         </p>
 

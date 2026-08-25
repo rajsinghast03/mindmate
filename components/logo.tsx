@@ -29,7 +29,10 @@ export function LogoMark({
 
   return (
     <div
-      className={`relative flex items-center justify-center rounded-2xl bg-ink-950 text-paper-50 shadow-soft transition-all duration-300 group-hover:scale-105 group-hover:shadow-card ${box} ${className}`}
+      // rounded-full, not rounded-2xl: that class is a fixed 1rem, which happens to
+      // equal 50% on the 32px navbar mark but only 29% on the 56px one — the same
+      // logo rendered as a circle in one place and a rounded square in another.
+      className={`relative flex items-center justify-center rounded-full bg-ink-950 text-paper-50 shadow-soft transition-all duration-300 group-hover:scale-105 group-hover:shadow-card ${box} ${className}`}
     >
       <svg
         width={icon * 0.75}

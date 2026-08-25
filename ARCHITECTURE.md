@@ -107,7 +107,7 @@ For the top 1–3 ranked candidates, a single structured LLM prompt is called:
 
 | Layer | Privacy Guarantee |
 | :--- | :--- |
-| **No Account Scraping** | Mindmate never asks for OpenAI credentials, OAuth tokens, or raw ChatGPT chat logs. The user copies a prompt and pastes only what they explicitly approve. |
+| **No Account Scraping** | Mindmate never asks for OpenAI credentials or raw ChatGPT chat logs. Google sign-in is used to identify you and nothing else — no Google data beyond your email and name is read. The user copies a prompt and pastes only what they explicitly approve. |
 | **Raw Profile Concealment** | Candidate users see only the high-level resonance summary, shared curiosity, broad city, and starter question. The full raw profile text is only revealed after both users accept the connection. |
 | **No Creepy Compatibility Numbers** | Mindmate eliminates numerical scores ("98% match") to avoid reductionist matchmaking and preserve human authenticity. |
 | **Zero-Trace Data Deletion** | When a user requests account deletion, a cascade deletes their profile, embeddings, matches, messages, and conversation records permanently. |

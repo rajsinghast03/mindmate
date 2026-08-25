@@ -9,6 +9,7 @@ import { DEMO_REPLIES } from '@/lib/matching/demo-replies';
 import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { clearOnboardingDraft } from '@/lib/onboarding-draft';
 
 /**
  * Same check the server uses, so unfilled .env placeholders can't switch the client
@@ -20,6 +21,8 @@ const SUPABASE_MODE = isSupabaseConfigured();
 export type AuthUser = {
   id: string;
   email: string;
+  /** Provider-supplied display name. Google sets it; password signups do not. */
+  fullName?: string | null;
 };
 
 interface MindmateContextType {
@@ -223,7 +226,13 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
 
           if (res.ok) {
             const data = await res.json();
-            if (data.user) setAuthUser({ id: data.user.id, email: data.user.email });
+            if (data.user) {
+              setAuthUser({
+                id: data.user.id,
+                email: data.user.email,
+                fullName: data.user.fullName ?? null,
+              });
+            }
             if (data.profile) {
               setUserProfile(data.profile);
               if (matchRes.ok) applyState(await matchRes.json());
@@ -572,30 +581,54 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     setUserProfile({ ...userProfile, visibility: nextVis });
   };
 
-  const clearLocalState = () => {
-    setUserProfile(null);
-    setMatches([]);
-    setConversations([]);
-    setPassedProfileIds([]);
-  };
-
   const signOut = async () => {
+    // Deliberately no React state clearing here.
+    //
+    // We are about to replace the document, so clearing React state achieves
+    // nothing except a re-render of the page being left — which paints its
+    // signed-out shape for a frame first ("No profile found" on /profile,
+    // "Create your Curiosity Profile first" on /discover) before the navigation
+    // commits. Leaving the tree untouched means the last thing on screen is the
+    // page as it was, until it is replaced wholesale.
+    //
+    // The sign-out is awaited before navigating so the auth cookies are gone by
+    // the time "/" is requested; otherwise middleware still sees a session and
+    // bounces to /discover.
     if (SUPABASE_MODE) {
       await createClient().auth.signOut();
-      setAuthUser(null);
     }
-    clearLocalState();
+
     localStorage.removeItem(STORAGE_KEY);
+    // Otherwise signing back in resurrects a draft from a previous session.
+    clearOnboardingDraft();
+
+    window.location.assign('/');
   };
 
   const resetAllData = async () => {
     if (SUPABASE_MODE) {
-      await fetch('/api/profile', { method: 'DELETE' });
-      setAuthUser(null);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+      const res = await fetch('/api/profile', { method: 'DELETE' });
+      // Previously unchecked, so a 401 or 500 wiped the local state and navigated
+      // away exactly as a success would, leaving the row still in the database.
+      if (!res.ok) {
+        throw new Error('Could not delete your data. Please try again.');
+      }
+
+      // The server route signs out too, but only server-side. Without this the
+      // memoized browser client keeps its in-memory session and refresh timer, so
+      // "/" still looks signed in to middleware and bounces to /discover — which
+      // then renders the "create a profile" screen, since the profile is gone.
+      await createClient().auth.signOut();
     }
-    clearLocalState();
+
+    // Same reasoning as signOut: the caller replaces the document immediately
+    // after this resolves, so nulling authUser/userProfile here only re-renders
+    // the tree on its way out — which is what made the navbar flip to its
+    // signed-out shape for a frame mid-delete.
+    localStorage.removeItem(STORAGE_KEY);
+    // "Delete all my data" has to mean the draft as well. Leaving it behind let
+    // /auth/complete find it and re-save the profile that was just deleted.
+    clearOnboardingDraft();
   };
 
   return (

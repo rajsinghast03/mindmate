@@ -12,7 +12,7 @@ export type OnboardingDraft = {
 
 const DRAFT_KEY = 'mindmate_onboarding_draft';
 
-/** Persist onboarding draft across tabs (survives magic-link email opens). */
+/** Persist onboarding draft across tabs (survives the confirmation-email round trip). */
 export function getOnboardingDraft(): OnboardingDraft | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -67,6 +67,30 @@ export function safeNextPath(
   if (!value) return fallback;
   if (!value.startsWith('/') || value.startsWith('//')) return fallback;
   return value;
+}
+
+/**
+ * Same as `safeNextPath`, but also accepts an absolute URL and reduces it to a path.
+ *
+ * Supabase email templates expand `{{ .RedirectTo }}` to the full URL that was passed
+ * as `emailRedirectTo`, so the value arriving at /auth/confirm is absolute. Anything
+ * pointing at another origin is discarded rather than followed.
+ */
+export function sameOriginPath(
+  value: string | null | undefined,
+  origin: string,
+  fallback: string
+): string {
+  if (!value) return fallback;
+  if (value.startsWith('/')) return safeNextPath(value, fallback);
+
+  try {
+    const url = new URL(value);
+    if (url.origin !== origin) return fallback;
+    return safeNextPath(`${url.pathname}${url.search}`, fallback);
+  } catch {
+    return fallback;
+  }
 }
 
 export function setAuthNextCookie(path: string) {

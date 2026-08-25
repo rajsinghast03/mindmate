@@ -29,12 +29,25 @@ export default function ProfileSettingsPage() {
   } = useMindmate();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isLoaded) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Deleting clears context state, which re-renders this page through its own
+  // "no profile" branch before the navigation lands. Checked above that branch so
+  // the page holds a spinner instead of flashing an empty state on the way out.
+  if (isDeleting) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+        <p className="font-serif text-sm text-ink-600">Deleting your data…</p>
       </div>
     );
   }
@@ -62,11 +75,20 @@ export default function ProfileSettingsPage() {
 
   const handleDelete = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
+    setShowDeleteModal(false);
     try {
       await resetAllData();
-      setShowDeleteModal(false);
-      router.push('/');
-    } finally {
+      // Full load rather than router.push: it tears down the React tree, so there
+      // is no intermediate client render at all, and the landing page is rendered
+      // against the now-signed-out cookies the DELETE set.
+      window.location.assign('/');
+    } catch (err) {
+      // resetAllData now throws on a failed DELETE, so the row really is still
+      // there — come back rather than pretending it worked.
+      setDeleteError(
+        err instanceof Error ? err.message : 'Could not delete your data. Please try again.'
+      );
       setIsDeleting(false);
     }
   };
@@ -213,6 +235,10 @@ export default function ProfileSettingsPage() {
               <span>Delete Data</span>
             </button>
           </div>
+
+          {deleteError && (
+            <p className="mt-4 text-xs font-medium text-red-700">{deleteError}</p>
+          )}
         </div>
       </div>
 

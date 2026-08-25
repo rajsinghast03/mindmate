@@ -5,11 +5,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { Logo } from '@/components/logo';
-import { Sparkles, MessageSquare, User, Compass, LogOut } from 'lucide-react';
+import { Sparkles, MessageSquare, User, Compass, LogOut, ArrowRight } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { userProfile, conversations, matches, isSupabaseMode, authUser, signOut } = useMindmate();
+  const { userProfile, conversations, matches, isSupabaseMode, authUser, isLoaded, signOut } =
+    useMindmate();
+
+  // Having an account and having finished onboarding are different things, and the
+  // nav used to conflate them: a user who signed in with Google but had not written
+  // a Curiosity Profile yet was shown "Sign in" for the whole of onboarding.
+  const signedIn = isSupabaseMode ? !!authUser : !!userProfile;
+
+  // Already inside the flow the CTA points at. Showing "Finish your profile" here
+  // is telling someone to do the thing they are visibly doing, and the link just
+  // loops back through /auth/complete to the page they are already on.
+  const inOnboarding =
+    pathname.startsWith('/onboarding') || pathname.startsWith('/auth');
 
   const suggestedCount = matches.filter(m => m.status === 'suggested').length;
   const incomingRequestCount = matches.filter(
@@ -26,11 +38,46 @@ export function Navbar() {
         {/* Brand */}
         {/* Point straight at the app once there's a profile — middleware would
             bounce "/" to /discover anyway, and this avoids the round-trip. */}
-        <Logo size="sm" showWordmark={true} href={userProfile ? '/discover' : '/'} />
+        <Logo size="sm" showWordmark={true} href={signedIn ? '/discover' : '/'} />
 
         {/* Navigation */}
         <nav className="flex items-center gap-1 sm:gap-2">
-          {userProfile ? (
+          {!isLoaded ? (
+            // Neither branch until the session is known. Rendering the logged-out one
+            // meant "Sign in" flashed on every load and every tab return, for as long
+            // as /api/profile took. Fixed width so nothing shifts when it resolves.
+            <div
+              aria-hidden="true"
+              className="h-8 w-28 animate-pulse rounded-full bg-paper-200 sm:w-40"
+            />
+          ) : signedIn && !userProfile ? (
+            // Signed in, onboarding unfinished. Note Google has no separate sign-up:
+            // signing in with an unregistered address creates the account, so this is
+            // the normal first-run state for an OAuth user, not an error.
+            <>
+              {!inOnboarding && (
+                <Link
+                  href="/auth/complete"
+                  className="flex items-center gap-1.5 rounded-full bg-ink-950 px-4 py-2 text-sm font-medium text-paper-50 transition-all hover:bg-ink-800 hover:shadow-soft"
+                >
+                  <span className="hidden sm:inline">Finish your profile</span>
+                  <span className="sm:hidden">Finish</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+
+              {isSupabaseMode && authUser && (
+                <button
+                  onClick={() => signOut()}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-ink-500 transition-all hover:bg-paper-200/60 hover:text-ink-800"
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign out</span>
+                </button>
+              )}
+            </>
+          ) : userProfile ? (
             <>
               <Link
                 href="/discover"

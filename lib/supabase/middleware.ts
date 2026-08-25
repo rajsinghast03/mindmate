@@ -1,8 +1,20 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isSupabaseConfigured, getSupabasePublishableKey, getSupabaseUrl } from '@/lib/config';
+import { safeNextPath } from '@/lib/onboarding-draft';
 
-const PROTECTED_PREFIXES = ['/discover', '/connections', '/chat', '/profile'];
+// /auth/reset-password belongs here: it acts on the session /auth/confirm minted
+// from the recovery token, so without one there is nothing for it to update.
+const PROTECTED_PREFIXES = [
+  '/discover',
+  '/connections',
+  '/chat',
+  '/profile',
+  '/auth/reset-password',
+];
+
+/** Ways in. A signed-in user has no business on any of them. */
+const AUTH_ENTRY_PREFIXES = ['/auth/login', '/auth/signup', '/auth/forgot-password'];
 
 /** Where a signed-in user goes instead of the marketing page. */
 const SIGNED_IN_HOME = '/discover';
@@ -69,9 +81,12 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
-  if (pathname.startsWith('/auth/login') && user) {
+  if (AUTH_ENTRY_PREFIXES.some(p => pathname.startsWith(p)) && user) {
     return redirectTo(request, supabaseResponse, url => {
-      url.pathname = request.nextUrl.searchParams.get('next') || SIGNED_IN_HOME;
+      // `next` is attacker-influencable. Assigning it straight to `pathname` cannot
+      // leave the origin, but it can still be junk, so validate it like the other
+      // two call sites do.
+      url.pathname = safeNextPath(request.nextUrl.searchParams.get('next'), SIGNED_IN_HOME);
       url.searchParams.delete('next');
     });
   }

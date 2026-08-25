@@ -204,8 +204,11 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - Automated toxicity / harassment scanning on messages.
   - Report handling endpoint and admin moderation views.
 - [ ] **5.3 Auth Abuse Prevention**
-  - Cloudflare Turnstile (or hCaptcha) on the login form via Supabase's native CAPTCHA support — prevents email-bombing of magic links through our Resend quota.
-  - Tighten Supabase Auth rate limits per email/IP for OTP requests.
+  - Cloudflare Turnstile (or hCaptcha) on the sign-in, sign-up and forgot-password forms via
+    Supabase's native CAPTCHA support. The threat changed with the auth rewrite: it is now
+    credential stuffing against `signInWithPassword`, plus signup and reset-link spam through
+    our Resend quota.
+  - Tighten Supabase Auth rate limits per email/IP for sign-in attempts and confirmation resends.
   - Monitor Resend delivery dashboard for unusual send spikes.
 
 ---

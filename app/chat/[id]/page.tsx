@@ -64,6 +64,7 @@ export default function ChatRoomPage() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [unseenBelow, setUnseenBelow] = useState(false);
   const [questionOverride, setQuestionOverride] = useState<boolean | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const [coarsePointer, setCoarsePointer] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -84,7 +85,10 @@ export default function ChatRoomPage() {
   const seenInContext = useRef(false);
   const listedNow = conversations.some(c => c.id === conversationId);
   if (listedNow) seenInContext.current = true;
-  const conversationEnded = isSupabaseMode && seenInContext.current && !listedNow;
+  // `leaving` covers unmatching from this page: the context refetch drops the
+  // conversation before the redirect lands, which would otherwise flash "This
+  // conversation has ended" at someone who is already on their way out.
+  const conversationEnded = isSupabaseMode && seenInContext.current && !listedNow && !leaving;
 
   const { peerTyping, notifyTyping, notifyStopped } = useTypingChannel(
     conversationId,
@@ -466,12 +470,15 @@ export default function ChatRoomPage() {
   };
 
   const handleUnmatch = async () => {
+    setLeaving(true);
+    setShowUnmatchModal(false);
     try {
       await unmatchConversation(conversationId);
     } catch (err) {
       console.error('Failed to unmatch:', err);
+      setLeaving(false);
+      return;
     }
-    setShowUnmatchModal(false);
     router.push('/connections');
   };
 

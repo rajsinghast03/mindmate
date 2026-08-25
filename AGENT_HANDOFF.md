@@ -118,17 +118,40 @@
       007 does the matching `REVOKE` for `conversation_summaries`; 005's needs the same.
 - [ ] Blocks & reports UI — tables and RLS exist, nothing writes to them yet (ROADMAP 4.3 / 5.2).
       The chat overflow menu currently `alert()`s and unmatches instead of recording a report.
-- [ ] Turnstile on the login form (ROADMAP 5.3).
+- [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.
 
 ### Completed in Phase 2
 - [x] SQL migration (`supabase/migrations/001_initial_schema.sql`) — profiles, matches, messages, blocks, reports, pgvector, RLS.
 - [x] Supabase client setup (`@supabase/ssr`) — browser, server, middleware.
-- [x] Magic Link auth UI (`/auth/login`, `/auth/callback`).
+- [x] Auth UI — Google OAuth plus verified email/password (`/auth/login`, `/auth/signup`,
+      `/auth/callback`, `/auth/confirm`, `/auth/forgot-password`, `/auth/reset-password`).
 - [x] Profile CRUD API (`/api/profile` — GET, POST, PATCH, DELETE).
 - [x] Context wired for Supabase mode with localStorage fallback for matches/chat.
-- [x] Onboarding auth gate — draft profile saved in sessionStorage, resume after login.
+- [x] Onboarding auth gate — draft saved in localStorage, plus a token-keyed server copy that
+      rides inside the confirmation email so a different device can resume (migration 008).
 - [x] **Location UX overhaul** — country→city cascading dropdowns (India default, 244 countries / ~4.6k cities via GeoNames-derived `data/world-cities.json`, regenerable with `scripts/generate-world-cities.mjs`). Profiles now store a clean display label (`city_or_timezone`) + structured `iana_timezone` (migration `003_profile_timezone.sql`); re-ranker computes DST-safe UTC offsets from IANA timezone with legacy `UTC±X` label parsing as fallback.
-- [x] **Auth email infrastructure** — custom domain `mindmate.site` verified on Resend (SPF/DKIM via CNAME forge records); Resend SMTP wired into Supabase (unlocks template editing + removes built-in 2/hr cap). Branded Magic Link template lives at `supabase/templates/magic-link.html` — re-paste into Supabase dashboard after edits. "Confirm email" disabled deliberately: with OTP-only auth the magic link itself proves inbox ownership (revisit if passwords are ever added). Auth-abuse prevention (Turnstile on login) tracked in ROADMAP 5.3.
+- [x] **Auth email infrastructure** — custom domain `mindmate.site` verified on Resend
+      (SPF/DKIM via CNAME forge records); Resend SMTP wired into Supabase. Email is now used by
+      the **email/password path only** — signup confirmation and password reset. Google sign-in
+      sends nothing.
+
+      **"Confirm email" is ON.** It used to be off deliberately, on the reasoning that a magic
+      link is itself proof of inbox ownership — that reasoning noted "revisit if passwords are
+      ever added", and passwords are now here. With passwords and confirmation off, anyone could
+      register an address they do not own.
+
+      Templates live at `supabase/templates/confirm-signup.html` and `reset-password.html`;
+      re-paste into the dashboard after edits. Both use `{{ .TokenHash }}` against `/auth/confirm`
+      rather than the default confirmation URL, because `@supabase/ssr` uses PKCE and the code
+      verifier does not exist in the browser that opens the email. Auth-abuse prevention
+      (Turnstile) tracked in ROADMAP 5.3.
+
+      **Signup discloses whether an address is registered.** Supabase returns an obfuscated
+      user with an empty `identities` array for an existing address; `components/auth-form.tsx`
+      detects that and says so. This reverses the earlier non-disclosing stance and makes signup
+      an account-enumeration oracle — a deliberate, user-requested trade, taken because the
+      alternative sent people to an inbox that would never receive anything. /auth/forgot-password
+      stays non-disclosing.
 - [x] **Logo simplification** — coral spark dot removed from `LogoMark` SVG everywhere; serif-M-only inside ink circle. Wordmark optically aligned via `translate-y-[0.06em]`.
 
 > **Note:** Apply migrations in order. Instances that already ran `001` still need `002`–`005`.

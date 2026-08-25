@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import {
   getOnboardingDraft,
+  saveOnboardingDraft,
   clearOnboardingDraft,
   safeNextPath,
   type OnboardingDraft,
@@ -14,18 +15,22 @@ import {
  * Where a recovered draft came from.
  *
  * `local` means this browser wrote it, which is the only evidence we have that the
- * person signing in is the person who typed it. `server` is the cross-device path
- * (draft keyed by email), and anyone can write to that key for any address — so a
- * server draft is never trusted enough to save without the owner seeing it first.
+ * person signing in is the person who typed it. `server` is the cross-device path:
+ * the draft was stashed under a random token that travelled inside the confirmation
+ * email, so only the verified recipient can redeem it. That is a far narrower door
+ * than the old email key, but it is still not this browser — a server draft goes to
+ * the review screen for a look rather than being saved silently.
  */
 type ResolvedDraft = { draft: OnboardingDraft; source: 'local' | 'server' } | null;
 
-async function resolveDraft(): Promise<ResolvedDraft> {
+async function resolveDraft(token: string | null): Promise<ResolvedDraft> {
   const local = getOnboardingDraft();
   if (local?.curiosityProfile) return { draft: local, source: 'local' };
 
+  if (!token) return null;
+
   try {
-    const res = await fetch('/api/onboarding-draft');
+    const res = await fetch(`/api/onboarding-draft?token=${encodeURIComponent(token)}`);
     if (res.ok) {
       const { draft } = await res.json();
       if (draft?.curiosityProfile) return { draft: draft as OnboardingDraft, source: 'server' };
@@ -48,10 +53,10 @@ export default function AuthCompletePage() {
 
     // Read from window rather than useSearchParams(): this effect is already
     // client-only, and useSearchParams would force a Suspense refactor of the page.
-    const destination = safeNextPath(
-      new URLSearchParams(window.location.search).get('next'),
-      '/discover'
-    );
+    const params = new URLSearchParams(window.location.search);
+    const destination = safeNextPath(params.get('next'), '/discover');
+    // Set by the signup flow; the confirmation email carries it back here.
+    const draftToken = params.get('draft');
 
     (async () => {
       if (!isSupabaseMode) {
@@ -69,12 +74,12 @@ export default function AuthCompletePage() {
         return;
       }
 
-      const resolved = await resolveDraft();
+      const resolved = await resolveDraft(draftToken);
       const draft = resolved?.draft;
 
-      // Auto-save only a draft this browser wrote. A server-recovered draft is
-      // shown on the review screen for explicit approval instead, so a draft
-      // planted against someone else's email can never silently become their profile.
+      // Auto-save only a draft this browser wrote. A token-recovered draft is
+      // shown on the review screen for explicit approval instead, so nothing that
+      // arrived from outside this browser silently becomes someone's profile.
       if (
         resolved?.source === 'local' &&
         draft?.curiosityProfile &&
@@ -100,6 +105,11 @@ export default function AuthCompletePage() {
       }
 
       if (draft?.curiosityProfile) {
+        // The review screen prefills from localStorage, so a draft redeemed from
+        // the server has to be written there first — otherwise it is read, deleted,
+        // and then dropped on the floor, and review bounces to /onboarding/paste
+        // with the text gone. That was the cross-device path's real failure mode.
+        if (resolved?.source === 'server') saveOnboardingDraft(draft);
         router.replace('/onboarding/review');
         return;
       }

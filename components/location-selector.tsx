@@ -6,7 +6,6 @@ import {
   COUNTRIES,
   DEFAULT_COUNTRY_CODE,
   buildLocationSelection,
-  flattenCities,
   getCountryGeo,
   getStateCode,
   normalizeLocationSearch,
@@ -80,7 +79,10 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
             if (match) {
               const rawName = data.states.find(([sc]) => sc === code)?.[1];
               const isUnknown = code === UNKNOWN_BUCKET || !rawName || rawName === "Other";
-              setBucket(isUnknown ? null : code);
+              // Track the real bucket regardless; only the *label* is suppressed for
+              // the unclassified bucket, or its cities would become unreachable now
+              // that the country-wide fallback is gone.
+              setBucket(code);
               onChange(
                 buildLocationSelection(
                   selectedCountryCode,
@@ -138,10 +140,19 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
     return geo.states.filter(([, name]) => !query || normalizeLocationSearch(name).includes(query));
   }, [geo, stateQuery]);
 
-  /** Cities of the chosen state, or every city in the country when no state chosen. */
+  /**
+   * Cities of the chosen state only.
+   *
+   * This used to fall back to every city in the country when no state was picked,
+   * which is where the duplicate React keys came from: 185 Indian city names exist
+   * in more than one state (Adampur in two, Ramgarh in seven), and a flattened list
+   * keyed on name alone collides — while also showing the user two identical
+   * entries they could not tell apart. Per-state lists have no repeated names at
+   * all (verified across every country file), so `${bucket}-${name}` is unique.
+   */
   const filteredCities = useMemo<[string, string][]>(() => {
-    if (!geo) return [];
-    const source = bucket ? geo.cities[bucket] ?? [] : flattenCities(geo);
+    if (!geo || !bucket) return [];
+    const source = geo.cities[bucket] ?? [];
     const query = normalizeLocationSearch(cityInput);
     return source.filter(([name]) => !query || normalizeLocationSearch(name).includes(query));
   }, [geo, bucket, cityInput]);
@@ -182,15 +193,6 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
     setOpenDropdown("city");
   };
 
-  const clearState = () => {
-    setBucket(null);
-    setStateQuery("");
-    onChange(
-      buildLocationSelection(selectedCountryCode, selectedCountry?.name ?? selectedCountryCode, null, null, fallbackTz()),
-    );
-    setCityInput("");
-  };
-
   const selectCity = (cityName: string, tz: string) => {
     const stateName =
       bucket && geo ? geo.states.find(([c]) => c === bucket)?.[1] ?? null : null;
@@ -207,12 +209,23 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
     setOpenDropdown(null);
   };
 
-  const chooseRegionOnly = () => {
+  /**
+   * Clearing the field is what drops back to state-only, now that the explicit
+   * "prefer not to say" option is gone. Without committing it here the city would
+   * be unclearable — the sync effect above would push value.city straight back in.
+   */
+  const clearCity = () => {
+    if (!value?.city) return;
+    const stateName = bucket && geo ? geo.states.find(([c]) => c === bucket)?.[1] ?? null : null;
     onChange(
-      buildLocationSelection(selectedCountryCode, selectedCountry?.name ?? selectedCountryCode, null, null, fallbackTz()),
+      buildLocationSelection(
+        selectedCountryCode,
+        selectedCountry?.name ?? selectedCountryCode,
+        stateName === "Other" ? null : stateName,
+        null,
+        geo?.cities[bucket ?? ""]?.[0]?.[1] ?? fallbackTz(),
+      ),
     );
-    setCityInput("");
-    setOpenDropdown(null);
   };
 
   const handleCustomCity = () => {
@@ -323,27 +336,11 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
                     {searchIcon}
                     <input autoFocus value={stateQuery} onChange={(event) => setStateQuery(event.target.value)} placeholder="Search states / provinces…" className="w-full rounded-xl border border-paper-300 bg-paper-100/80 py-2 pl-9 pr-3 text-sm text-ink-950 placeholder:text-ink-400 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20" />
                   </div>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      clearState();
-                      setOpenDropdown("city");
-                    }}
-                    className={`mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm italic transition-colors ${
-                      !value?.state ? "bg-accent-100 font-medium text-ink-950" : "text-ink-500 hover:bg-paper-200"
-                    }`}
-                  >
-                    All states — search every city
-                    {!value?.state && <Check className="h-3.5 w-3.5 shrink-0 not-italic text-accent-600" />}
-                  </button>
                   {renderOptions(
                     filteredStates.map(([code, name]) => ({
                       key: code,
                       label: name === "Other" ? "Other / Unclassified" : name,
-                      selected:
-                        (code === UNKNOWN_BUCKET && !!bucket && !value?.state) ||
-                        value?.state === name,
+                      selected: bucket === code,
                       onSelect: () => selectState(code, name),
                     })),
                   )}
@@ -363,28 +360,19 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
               onChange={(event) => {
                 setCityInput(event.target.value);
                 setOpenDropdown("city");
+                if (!event.target.value.trim()) clearCity();
               }}
-              placeholder="City (optional)"
+              placeholder={bucket ? "City (optional)" : "City — pick a state first"}
               className="min-w-0 flex-1 bg-transparent font-serif text-sm font-medium text-ink-950 placeholder:text-ink-400 focus:outline-none sm:text-base"
             />
             <ChevronDown className={`h-4 w-4 shrink-0 text-ink-400 transition-transform ${openDropdown === "city" ? "rotate-180" : ""}`} />
           </label>
           {openDropdown === "city" && (
             <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-2xl border border-paper-300 bg-paper-50 p-2 shadow-lifted animate-in fade-in zoom-in-95 duration-150">
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={chooseRegionOnly}
-                className={`mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm italic transition-colors ${
-                  !cityInput.trim() ? "bg-accent-100 font-medium text-ink-950" : "text-ink-500 hover:bg-paper-200"
-                }`}
-              >
-                Prefer not to say — just my region
-              </button>
               {filteredCities.slice(0, MAX_RENDERED).map(([name, tz]) => (
                 <button
                   type="button"
-                  key={`${bucket ?? "all"}-${name}`}
+                  key={`${bucket}-${name}`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectCity(name, tz)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
@@ -411,7 +399,12 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
                   Use “{cityInput.trim()}” as entered
                 </button>
               )}
-              {!filteredCities.length && !cityInput.trim() && geo && (
+              {!bucket && geo && (
+                <p className="px-3 py-2 text-xs text-ink-500">
+                  Choose a state or province above to see its cities — or type your own.
+                </p>
+              )}
+              {bucket && !filteredCities.length && !cityInput.trim() && geo && (
                 <p className="px-3 py-2 text-xs text-ink-500">Type a city to search, or enter your own.</p>
               )}
             </div>

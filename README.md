@@ -65,12 +65,16 @@ Without Supabase env vars, the app works fully offline using `localStorage` and 
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the migration in **SQL Editor**: paste contents of `supabase/migrations/001_initial_schema.sql`.
-3. Enable **Email** auth under Authentication → Providers (Magic Link).
-4. Add redirect URLs under Authentication → URL Configuration (add every origin you use):
-   - `http://localhost:3000/auth/callback`
-   - `http://YOUR_LAN_IP:3000/auth/callback` (for phone on same Wi‑Fi)
+3. Authentication → Providers → **Email**: enable, turn **Confirm email ON**, turn Magic Link
+   off. Set a minimum password length of 8 and enable leaked-password protection.
+4. Authentication → Providers → **Google**: enable and paste a Google Cloud OAuth client ID and
+   secret. In Google Cloud Console the authorized redirect URI is **Supabase's**, not the app's:
+   `https://<project-ref>.supabase.co/auth/v1/callback`.
+5. Add redirect URLs under Authentication → URL Configuration (every origin you use, both paths):
+   - `http://localhost:3000/auth/callback` and `http://localhost:3000/auth/confirm`
+   - `http://YOUR_LAN_IP:3000/auth/callback` and `.../auth/confirm` (phone on the same Wi‑Fi)
    - Site URL: whichever origin you use most (e.g. `http://localhost:3000`)
-5. Copy credentials into `.env.local`:
+6. Copy credentials into `.env.local`:
 
    **Project URL** — open **Connect** (top of dashboard), or go to **Settings → Data API**.
 
@@ -148,7 +152,12 @@ With no AI key at all the app still runs: profiles save with a null embedding, m
 
 ### Custom SMTP (Resend — production email)
 
-Supabase's built-in email service caps at ~2 emails/hour and locks template editing. Use Resend with a verified domain instead (free tier: 3,000 emails/month):
+Email is used by the **email/password path only**: the signup confirmation and password reset.
+Google sign-in sends nothing, because Google has already verified the address.
+
+Supabase's built-in service caps at ~2 emails/hour and locks template editing, which is not
+enough once signup is gated on confirmation. Use Resend with a verified domain (free tier:
+3,000 emails/month):
 
 1. Add your domain at [resend.com](https://resend.com) → Domains → Add Domain.
 2. Add the DNS records Resend shows (CNAME-based forge setup) at your registrar; verify propagation with `dig CNAME send.yourdomain.com +short` before clicking Verify.
@@ -156,10 +165,15 @@ Supabase's built-in email service caps at ~2 emails/hour and locks template edit
 4. Supabase Dashboard → Project Settings → Authentication → SMTP Settings → Enable:
    - Host `smtp.resend.com` · Port `587` · Username `resend` · Password: your `re_...` key
    - Sender: e.g. `auth@yourdomain.com`
-5. Customize the Magic Link template (Authentication → Emails → Templates) from `supabase/templates/magic-link.html`. Keep every `{{ .ConfirmationURL }}` occurrence intact.
-6. Recommended settings for passwordless-only auth:
-   - Authentication → Providers → Email → **Confirm email OFF** (the magic link itself proves inbox ownership).
-   - Authentication → Rate Limits → raise "emails sent" to ~30/hour.
+5. Paste the two templates from `supabase/templates/` into Authentication → Emails → Templates:
+   `confirm-signup.html` into **Confirm signup**, `reset-password.html` into **Reset password**.
+
+   Both link to `/auth/confirm?token_hash=…` rather than Supabase's default confirmation-URL
+   variable, and that is load-bearing: the default lands on `/auth/callback` with a `?code`, and
+   `@supabase/ssr` uses PKCE — the code verifier lives in the browser that started the flow, so
+   opening the mail on a phone would fail. `verifyOtp` carries no verifier and works anywhere.
+   Keep the URLs and their query parameters exactly as written.
+6. Authentication → Rate Limits → raise "emails sent" to ~30/hour.
 
 ### Location dataset
 

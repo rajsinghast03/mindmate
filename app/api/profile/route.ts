@@ -39,9 +39,19 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Google hands back a display name; onboarding uses it as a prefill so an OAuth
+  // signup does not start with an empty name field. Absent for password signups.
+  const metadata = user.user_metadata ?? {};
+  const fullName =
+    typeof metadata.full_name === 'string'
+      ? metadata.full_name
+      : typeof metadata.name === 'string'
+        ? metadata.name
+        : null;
+
   return NextResponse.json({
     mode: 'supabase',
-    user: { id: user.id, email: user.email },
+    user: { id: user.id, email: user.email, fullName },
     profile: data ? dbProfileToProfile(data) : null,
   });
 }

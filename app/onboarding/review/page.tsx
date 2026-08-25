@@ -30,6 +30,10 @@ export default function ProfileReviewPage() {
   );
   const [curiosityText, setCuriosityText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // False until the effect below decides we are staying. The page used to render
+  // its whole form on the first paint and only then redirect, which flashed an
+  // empty form at anyone arriving without a draft.
+  const [ready, setReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -38,16 +42,21 @@ export default function ProfileReviewPage() {
       setAge(userProfile.age);
       setLocation(locationFromStored(userProfile.cityOrTimezone, userProfile.ianaTimezone));
       setCuriosityText(userProfile.curiosityProfile);
+      setReady(true);
       return;
     }
 
-    // Wait for auth session before deciding there's no draft (magic-link opens new context)
+    // Wait for the auth session before concluding there is no draft — a confirmation
+    // link can open in a context that has not loaded one yet.
     if (!isLoaded) return;
 
     const draft = getOnboardingDraft();
     if (draft?.curiosityProfile) {
       setCuriosityText(draft.curiosityProfile);
+      // Google supplies a name; fall back to it so an OAuth signup does not land on
+      // an empty field. A name already in the draft always wins.
       if (draft.displayName) setDisplayName(draft.displayName);
+      else if (authUser?.fullName) setDisplayName(authUser.fullName);
       if (draft.age) setAge(draft.age);
       if (draft.countryCode) {
         setLocation(
@@ -62,12 +71,19 @@ export default function ProfileReviewPage() {
       } else if (draft.cityOrTimezone) {
         setLocation(locationFromStored(draft.cityOrTimezone, draft.ianaTimezone));
       }
+      setReady(true);
       return;
     }
 
-    // Authenticated but no local draft — metadata may still have it; /auth/complete handles that
-    if (isSupabaseMode && authUser) return;
+    // Authenticated but no local draft — /auth/complete redeems any stashed one.
+    if (isSupabaseMode && authUser) {
+      if (authUser.fullName) setDisplayName(prev => prev || authUser.fullName!);
+      setReady(true);
+      return;
+    }
 
+    // Deliberately leaves `ready` false so the spinner holds until the redirect
+    // lands, rather than painting an empty form on the way out.
     router.replace('/onboarding/paste');
   }, [userProfile, isLoaded, isSupabaseMode, authUser, router]);
 
@@ -106,7 +122,7 @@ export default function ProfileReviewPage() {
         state: location.state,
         city: location.city,
       });
-      router.push('/auth/login?next=/auth/complete');
+      router.push('/auth/signup');
       return;
     }
 
@@ -129,6 +145,15 @@ export default function ProfileReviewPage() {
       setIsSubmitting(false);
     }
   };
+
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
