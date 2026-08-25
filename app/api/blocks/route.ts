@@ -159,7 +159,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Could not unblock this person.' }, { status: 403 });
   }
 
-  // Unblocking does not restore the match — it only makes them eligible to be
-  // suggested again, which is what the discovery RPC checks.
+  // Unblocking only removes the block row. It does not bring the person back into
+  // discovery: match_candidate_profiles excludes anyone the viewer has *any* match
+  // row with, whatever its status, and blocking is only reachable from a chat — so
+  // a blocked person always has one. Verified with the blocks table empty.
   return NextResponse.json({ success: true });
 }

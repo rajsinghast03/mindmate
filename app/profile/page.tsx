@@ -261,8 +261,9 @@ export default function ProfileSettingsPage() {
               </h3>
             </div>
             <p className="mb-5 text-xs leading-relaxed text-ink-600">
-              They cannot be suggested to you and cannot reach you. Unblocking makes them eligible
-              to appear in discovery again — it does not restore a past conversation.
+              They cannot reach you, and the conversation you had is closed. Unblocking lifts the
+              block, but it will not bring them back — anyone you have already matched with stays
+              out of your suggestions either way.
             </p>
 
             <ul className="divide-y divide-paper-300 overflow-hidden rounded-2xl border border-paper-300">
