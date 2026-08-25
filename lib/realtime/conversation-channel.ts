@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 
 /**
- * Live "is typing" over Supabase Realtime Broadcast.
+ * The live side-channel for one conversation: typing, and read receipts.
  *
  * The channel is **private**: migration 007 puts SELECT/INSERT policies on
  * realtime.messages that only pass for the two people in the conversation, so a
@@ -23,13 +23,24 @@ const IDLE_STOP_MS = 3_000;
 const RECEIVE_EXPIRY_MS = 4_000;
 
 type TypingPayload = { profileId: string };
+type ReadPayload = { profileId: string; readAt: string };
 
-export function useTypingChannel(
+export function useConversationChannel(
   conversationId: string | null,
   selfProfileId: string | null,
   enabled: boolean
 ) {
   const [peerTyping, setPeerTyping] = useState(false);
+  /**
+   * When the other person last read this thread, as reported live.
+   *
+   * Broadcast rather than a postgres_changes subscription on conversation_reads:
+   * a read mark is not worth database replication traffic, and the channel is
+   * already here and already scoped to these two people. Broadcast is ephemeral,
+   * so the authoritative value still comes from the messages GET on load and on
+   * every resync — this only keeps it current while both are looking.
+   */
+  const [peerReadAt, setPeerReadAt] = useState<string | null>(null);
 
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const lastSentAt = useRef(0);
@@ -73,6 +84,12 @@ export function useTypingChannel(
           clearExpiry();
           setPeerTyping(false);
         })
+        .on('broadcast', { event: 'read' }, ({ payload }) => {
+          const { profileId, readAt } = (payload ?? {}) as ReadPayload;
+          if (profileId === selfProfileId || !readAt) return;
+          // Monotonic: a late-arriving older mark must not walk the receipt back.
+          setPeerReadAt(prev => (!prev || readAt > prev ? readAt : prev));
+        })
         .subscribe(status => {
           if (status === 'CHANNEL_ERROR') {
             // Not fatal: messaging is unaffected, only the indicator is lost.
@@ -90,6 +107,7 @@ export function useTypingChannel(
       idleTimer.current = null;
       channelRef.current = null;
       setPeerTyping(false);
+      setPeerReadAt(null);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [enabled, conversationId, selfProfileId]);
@@ -99,6 +117,20 @@ export function useTypingChannel(
       const channel = channelRef.current;
       if (!channel || !selfProfileId) return;
       void channel.send({ type: 'broadcast', event, payload: { profileId: selfProfileId } });
+    },
+    [selfProfileId]
+  );
+
+  /** Tell the other side this thread has been read, so their receipt updates live. */
+  const notifyRead = useCallback(
+    (readAt: string) => {
+      const channel = channelRef.current;
+      if (!channel || !selfProfileId) return;
+      void channel.send({
+        type: 'broadcast',
+        event: 'read',
+        payload: { profileId: selfProfileId, readAt },
+      });
     },
     [selfProfileId]
   );
@@ -123,5 +155,5 @@ export function useTypingChannel(
     idleTimer.current = setTimeout(notifyStopped, IDLE_STOP_MS);
   }, [send, notifyStopped]);
 
-  return { peerTyping, notifyTyping, notifyStopped };
+  return { peerTyping, notifyTyping, notifyStopped, peerReadAt, setPeerReadAt, notifyRead };
 }

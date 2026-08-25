@@ -150,6 +150,17 @@ export async function GET(
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', conversationId);
 
+  // When the counterpart last read this thread — the authoritative read receipt.
+  // The live updates arrive over the conversation's broadcast channel, but
+  // broadcast is ephemeral, so this is what the client falls back to on load and
+  // on every resync.
+  const { data: peerRead } = await service
+    .from('conversation_reads')
+    .select('last_read_at')
+    .eq('conversation_id', conversationId)
+    .eq('profile_id', context.candidate.id)
+    .maybeSingle();
+
   // Reaching here means the match is connected, so the raw profile is unlocked.
   const conversation: Conversation = {
     id: conversationId,
@@ -167,6 +178,7 @@ export async function GET(
 
   return NextResponse.json({
     conversation,
+    peerLastReadAt: peerRead?.last_read_at ?? null,
     page: { hasMore, oldestCursor: messages[0]?.createdAt ?? null },
   });
 }

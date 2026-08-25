@@ -166,7 +166,12 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
   - [x] Typing indicators over a **private** Broadcast channel (migration 007). Supabase evaluates
         RLS on `realtime.messages` for private channels, so only the two people in a conversation
         can join `convo:<id>` — a stranger holding the UUID cannot watch.
-  - [ ] Still to do: delivery state (sent/delivered/read receipts). Optimistic send with a
+  - [x] Read receipts — "Sent" / "Seen" under the newest message you sent. Derived from
+        `conversation_reads.last_read_at` (migration 007), so no new schema: the unread badge and
+        the read receipt are the same fact read from opposite directions. Live updates ride the
+        conversation's existing private broadcast channel rather than replicating a read table;
+        the authoritative value comes back on every load and resync.
+  - [x] Optimistic send with a
         pending state and a retry affordance is in; per-message read receipts are not.
 - [x] **4.4 Inbox & thread UX** (migration 007)
   - `/connections` is a compact list: ~68px rows, `You:` / `<Name>:` attribution on the preview,

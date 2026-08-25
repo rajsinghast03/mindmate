@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useMindmate } from '@/context/mindmate-context';
 import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
-import { useTypingChannel } from '@/lib/realtime/typing';
+import { useConversationChannel } from '@/lib/realtime/conversation-channel';
 import { Avatar } from '@/components/avatar';
 import { TypingIndicator } from '@/components/typing-indicator';
 import { ReportDialog } from '@/components/report-dialog';
@@ -92,11 +92,12 @@ export default function ChatRoomPage() {
   // conversation has ended" at someone who is already on their way out.
   const conversationEnded = isSupabaseMode && seenInContext.current && !listedNow && !leaving;
 
-  const { peerTyping, notifyTyping, notifyStopped } = useTypingChannel(
-    conversationId,
-    userProfile?.id ?? null,
-    isSupabaseMode && !conversationEnded
-  );
+  const { peerTyping, notifyTyping, notifyStopped, peerReadAt, setPeerReadAt, notifyRead } =
+    useConversationChannel(
+      conversationId,
+      userProfile?.id ?? null,
+      isSupabaseMode && !conversationEnded
+    );
 
   /** Merge by id — Realtime, the POST response and a resync can all carry the same row. */
   const mergeMessages = useCallback((incoming: Message[]) => {
@@ -163,6 +164,7 @@ export default function ChatRoomPage() {
       if (!res.ok) return null;
       return (await res.json()) as {
         conversation: Conversation;
+        peerLastReadAt: string | null;
         page: { hasMore: boolean; oldestCursor: string | null };
       };
     },
@@ -181,6 +183,11 @@ export default function ChatRoomPage() {
         if (cancelled || !result) return;
         setRemoteConversation(result.conversation);
         setHasMore(result.page.hasMore);
+        if (result.peerLastReadAt) {
+          setPeerReadAt(prev =>
+            !prev || result.peerLastReadAt! > prev ? result.peerLastReadAt! : prev
+          );
+        }
       } catch (e) {
         console.error('Failed to load conversation:', e);
       } finally {
@@ -206,7 +213,15 @@ export default function ChatRoomPage() {
     // — and since this is one page rather than the whole thread, it stays cheap.
     const resync = () =>
       void fetchPage()
-        .then(result => result && mergeMessages(result.conversation.messages))
+        .then(result => {
+          if (!result) return;
+          mergeMessages(result.conversation.messages);
+          if (result.peerLastReadAt) {
+            setPeerReadAt(prev =>
+              !prev || result.peerLastReadAt! > prev ? result.peerLastReadAt! : prev
+            );
+          }
+        })
         .catch(() => {});
 
     void (async () => {
@@ -243,6 +258,7 @@ export default function ChatRoomPage() {
       if (document.visibilityState !== 'visible') return;
       resync();
       markConversationRead(conversationId);
+      notifyRead(new Date().toISOString());
     };
     document.addEventListener('visibilitychange', onVisible);
 
@@ -251,9 +267,20 @@ export default function ChatRoomPage() {
       document.removeEventListener('visibilitychange', onVisible);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [isSupabaseMode, conversationId, mergeMessages, fetchPage, markConversationRead]);
+  }, [isSupabaseMode, conversationId, mergeMessages, fetchPage, markConversationRead, notifyRead, setPeerReadAt]);
 
   const messages = conversation?.messages ?? [];
+
+  /**
+   * Only the newest message I sent carries a receipt.
+   *
+   * A tick on every bubble is noise, and reads as a delivery dashboard rather than
+   * a conversation. One quiet line at the bottom answers the only question anyone
+   * actually has: did they see it?
+   */
+  const lastOwnMessageId = [...messages]
+    .reverse()
+    .find(m => m.senderProfileId === userProfile?.id && !m.pending && !m.failed)?.id;
 
   // Tell the provider which thread is open so an arriving message here never
   // lights the navbar badge, then clear the badge that is already there.
@@ -267,7 +294,9 @@ export default function ChatRoomPage() {
     if (!conversationId || typeof document === 'undefined') return;
     if (document.visibilityState !== 'visible') return;
     markConversationRead(conversationId);
-  }, [conversationId, messages.length, markConversationRead]);
+    // Same moment, broadcast: their receipt updates without waiting for a refetch.
+    notifyRead(new Date().toISOString());
+  }, [conversationId, messages.length, markConversationRead, notifyRead]);
 
   useEffect(() => {
     const mq = window.matchMedia('(pointer: coarse)');
@@ -392,6 +421,16 @@ export default function ChatRoomPage() {
   }
 
   const { candidateProfile, sharedQuestion, resonanceSummary } = conversation;
+
+  /**
+   * Seen if their last-read mark is at or after this message.
+   *
+   * No new schema: conversation_reads.last_read_at already exists from migration
+   * 007, where it powers the unread badge. A read receipt is the same fact read
+   * from the other direction.
+   */
+  const seenPeerMessage = (msg: Message) =>
+    !!peerReadAt && Date.parse(peerReadAt) >= Date.parse(msg.createdAt);
   // The opener is the point of an empty thread, so it stays expanded until there
   // is something to read; after that it collapses out of the way on small screens.
   const questionOpen = questionOverride ?? messages.length === 0;
@@ -719,8 +758,13 @@ export default function ChatRoomPage() {
                       </button>
                     ) : (
                       endsGroup && (
-                        <span className="mt-1 px-1 text-[10px] text-ink-400">
-                          {msg.pending ? 'Sending…' : formatMessageTime(msg.createdAt)}
+                        <span className="mt-1 flex items-center gap-1.5 px-1 text-[10px] text-ink-400">
+                          <span>{msg.pending ? 'Sending…' : formatMessageTime(msg.createdAt)}</span>
+                          {msg.id === lastOwnMessageId && (
+                            <span className={seenPeerMessage(msg) ? 'text-sage-600' : undefined}>
+                              {seenPeerMessage(msg) ? 'Seen' : 'Sent'}
+                            </span>
+                          )}
                         </span>
                       )
                     )}
