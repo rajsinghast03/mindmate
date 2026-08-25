@@ -859,7 +859,7 @@ export default function ChatRoomPage() {
       {/* Unmatch Confirmation Modal */}
       {showUnmatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
+          <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
             <h3 className="mb-2 font-serif text-xl font-medium text-ink-950">
               Unmatch with {candidateProfile.displayName}?
             </h3>

@@ -231,7 +231,7 @@ export default function ProfileSettingsPage() {
 
           {isSupabaseMode && authUser && (
             <p className="text-xs text-ink-500 pb-2">
-              Signed in as <strong>{authUser.email}</strong>
+              Signed in as <strong className="break-all">{authUser.email}</strong>
             </p>
           )}
 
@@ -324,7 +324,7 @@ export default function ProfileSettingsPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
+          <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 mb-3">
               <AlertTriangle className="h-5 w-5" />
             </div>

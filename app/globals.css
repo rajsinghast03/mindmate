@@ -9,7 +9,7 @@
   }
 
   body {
-    @apply bg-paper-100 text-ink-900 font-sans antialiased selection:bg-accent-200 selection:text-ink-950 min-h-screen flex flex-col;
+    @apply bg-paper-100 text-ink-900 font-sans antialiased selection:bg-accent-200 selection:text-ink-950 min-h-dvh flex flex-col;
   }
 
   h1, h2, h3, h4, .font-serif {

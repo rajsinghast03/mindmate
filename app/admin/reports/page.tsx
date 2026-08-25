@@ -183,7 +183,7 @@ export default function AdminReportsPage() {
                 </span>
               </p>
 
-              <p className="mt-2 whitespace-pre-wrap rounded-xl border border-paper-200 bg-paper-100/60 p-3 text-sm leading-relaxed text-ink-800">
+              <p className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-paper-200 bg-paper-100/60 p-3 text-sm leading-relaxed text-ink-800">
                 {report.reason}
               </p>
 
@@ -226,7 +226,7 @@ export default function AdminReportsPage() {
                           >
                             {msg.senderName}:
                           </span>{' '}
-                          <span className="whitespace-pre-wrap text-ink-800">{msg.body}</span>
+                          <span className="whitespace-pre-wrap break-words text-ink-800">{msg.body}</span>
                           <span className="ml-1.5 text-[10px] text-ink-400">
                             {new Date(msg.createdAt).toLocaleString()}
                           </span>

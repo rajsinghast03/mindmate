@@ -238,7 +238,28 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
 **Goal:** Production readiness, performance audit, and deployment on Vercel.
 
 ### Tasks:
-- [ ] Responsive design audit across desktop, tablet, and mobile browsers.
+- [~] Responsive audit — **static analysis pass done; real device verification still owed.**
+
+      Found and fixed:
+        * `truncate` on a flex child with no `min-w-0` in the location dropdown — flex children
+          default to `min-width: auto`, so it could not shrink and long names ("Saint Vincent and
+          the Grenadines") pushed the row wide instead of ellipsising.
+        * User-written text in the moderation queue had `whitespace-pre-wrap` but no
+          `break-words`, so one long unbroken string overflows the card. That is exactly where
+          hostile input lands; the chat view already guarded against it.
+        * A long email on `/profile` is a single unbreakable token — now `break-all`.
+        * The unmatch and delete-data modals had no height cap, so on a landscape phone they
+          overflowed with nothing to scroll. Now `max-h-[90dvh] overflow-y-auto`, matching the
+          report dialog.
+        * `min-h-screen` (100vh) on the body → `min-h-dvh`. On mobile 100vh is the *largest*
+          viewport height, so every page carried a slight scroll.
+
+      Clean: no fixed pixel widths, no unprefixed multi-column grids, no `whitespace-nowrap` on
+      dynamic content, every other `truncate` correctly inside a `min-w-0` parent.
+
+      Static analysis cannot see layout. Still needs a pass at 360-390px on real pages —
+      `/discover`, `/profile`, onboarding, the landing page and `/admin/reports` — which is the
+      part a browser has to do.
 - [~] WCAG AA contrast audit — done; **coral fixed, greys deliberately not**.
       9 of 26 real combinations failed. All coral text moved to `accent-700` (5.53:1 on paper,
       was 3.99) and white-on-coral badges and confirm buttons to an `accent-700` ground (5.76:1,

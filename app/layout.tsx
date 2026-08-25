@@ -36,7 +36,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className="bg-paper-100 text-ink-900 flex flex-col min-h-screen"
+        className="bg-paper-100 text-ink-900 flex flex-col min-h-dvh"
         suppressHydrationWarning
       >
         <MindmateProvider>

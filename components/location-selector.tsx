@@ -260,7 +260,7 @@ export function LocationSelector({ value, onChange, error }: LocationSelectorPro
             item.selected ? "bg-accent-100 font-medium text-ink-950" : "text-ink-800 hover:bg-paper-200"
           }`}
         >
-          <span className="truncate">{item.label}</span>
+          <span className="min-w-0 truncate">{item.label}</span>
           {item.selected && <Check className="h-3.5 w-3.5 shrink-0 text-accent-700" />}
         </button>
       ))}
