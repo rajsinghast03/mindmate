@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
@@ -15,7 +15,15 @@ import {
   AlertTriangle,
   ArrowLeft,
   Sparkles,
+  Ban,
+  Loader2,
 } from 'lucide-react';
+
+type BlockedEntry = {
+  id: string;
+  createdAt: string;
+  profile: { id: string; displayName: string; cityOrTimezone: string };
+};
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
@@ -30,6 +38,34 @@ export default function ProfileSettingsPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [blocks, setBlocks] = useState<BlockedEntry[] | null>(null);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
+
+  const loadBlocks = useCallback(async () => {
+    if (!isSupabaseMode) return;
+    try {
+      const res = await fetch('/api/blocks');
+      if (res.ok) setBlocks((await res.json()).blocks ?? []);
+    } catch {
+      // Non-fatal: the section stays on its loading line rather than erroring the page.
+    }
+  }, [isSupabaseMode]);
+
+  useEffect(() => {
+    void loadBlocks();
+  }, [loadBlocks]);
+
+  const handleUnblock = async (profileId: string) => {
+    setUnblocking(profileId);
+    try {
+      const res = await fetch(`/api/blocks?profileId=${encodeURIComponent(profileId)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) setBlocks(prev => (prev ?? []).filter(b => b.profile.id !== profileId));
+    } finally {
+      setUnblocking(null);
+    }
+  };
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isLoaded) {
@@ -214,6 +250,47 @@ export default function ProfileSettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Blocked people — blocking has to be reversible somewhere. */}
+        {isSupabaseMode && blocks !== null && blocks.length > 0 && (
+          <div className="rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card sm:p-8">
+            <div className="mb-1 flex items-center gap-2">
+              <Ban className="h-4 w-4 text-ink-500" />
+              <h3 className="font-serif text-lg font-medium text-ink-950">
+                Blocked {blocks.length === 1 ? 'person' : 'people'}
+              </h3>
+            </div>
+            <p className="mb-5 text-xs leading-relaxed text-ink-600">
+              They cannot be suggested to you and cannot reach you. Unblocking makes them eligible
+              to appear in discovery again — it does not restore a past conversation.
+            </p>
+
+            <ul className="divide-y divide-paper-300 overflow-hidden rounded-2xl border border-paper-300">
+              {blocks.map(entry => (
+                <li key={entry.id} className="flex items-center gap-3 bg-paper-100/50 px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-serif text-sm font-medium text-ink-950">
+                      {entry.profile.displayName}
+                    </p>
+                    <p className="truncate text-[11px] text-ink-500">
+                      Blocked {new Date(entry.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleUnblock(entry.profile.id)}
+                    disabled={unblocking === entry.profile.id}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-paper-300 bg-paper-50 px-3 py-1.5 text-xs font-medium text-ink-700 transition-colors hover:bg-paper-200 disabled:opacity-60"
+                  >
+                    {unblocking === entry.profile.id && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    )}
+                    <span>Unblock</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Danger Zone / Delete Data */}
         <div className="rounded-3xl border border-red-200 bg-red-50/50 p-6 sm:p-8 shadow-card">

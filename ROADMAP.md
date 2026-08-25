@@ -187,9 +187,9 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     condensed header, and a collapsible pinned question.
 - [ ] **4.3 Conversation Management**
   - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
-  - [ ] Block & report dialogs with reason capture — the `blocks` and `reports` tables and their RLS
-        exist, but nothing writes to them. The chat overflow menu currently shows an `alert()` and
-        unmatches instead.
+  - [x] Block & report dialogs with reason capture (migration 010). Categorised reports with
+        optional detail and conversation context; blocking closes the match and locks the thread.
+        Unblock on `/profile`. Report handling (an admin queue) remains open under 5.2.
 
 ---
 

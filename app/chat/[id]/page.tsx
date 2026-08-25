@@ -9,6 +9,7 @@ import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
 import { useTypingChannel } from '@/lib/realtime/typing';
 import { Avatar } from '@/components/avatar';
 import { TypingIndicator } from '@/components/typing-indicator';
+import { ReportDialog } from '@/components/report-dialog';
 import { formatDateSeparator, formatMessageTime, isSameDay } from '@/lib/format/time';
 import { Conversation, Message } from '@/types';
 import {
@@ -65,6 +66,7 @@ export default function ChatRoomPage() {
   const [unseenBelow, setUnseenBelow] = useState(false);
   const [questionOverride, setQuestionOverride] = useState<boolean | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [coarsePointer, setCoarsePointer] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -557,13 +559,12 @@ export default function ChatRoomPage() {
               <button
                 onClick={() => {
                   setShowMenu(false);
-                  alert('Thank you for reporting. Our safety team will review this user.');
-                  void handleUnmatch();
+                  setShowReport(true);
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-accent-600 transition-colors hover:bg-accent-50"
               >
                 <ShieldAlert className="h-4 w-4 text-accent-500" />
-                <span>Block &amp; Report</span>
+                <span>Block &amp; report</span>
               </button>
             </div>
           )}
@@ -791,6 +792,24 @@ export default function ChatRoomPage() {
             </button>
           </form>
         </div>
+      )}
+
+      {showReport && (
+        <ReportDialog
+          profileId={candidateProfile.id}
+          displayName={candidateProfile.displayName}
+          conversationId={conversationId}
+          onClose={() => setShowReport(false)}
+          onDone={didBlock => {
+            // Blocking already ended the match server-side, so leave without
+            // waiting for the realtime update to flip this thread to "ended".
+            setShowReport(false);
+            if (didBlock) {
+              setLeaving(true);
+              router.push('/connections');
+            }
+          }}
+        />
       )}
 
       {/* Unmatch Confirmation Modal */}

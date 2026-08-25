@@ -119,8 +119,17 @@
       and `authenticated` inherited it. 009 also sets `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE
       ON FUNCTIONS FROM PUBLIC`, so the next SECURITY DEFINER function starts closed — this was
       the second time that default caught us.
-- [ ] Blocks & reports UI — tables and RLS exist, nothing writes to them yet (ROADMAP 4.3 / 5.2).
-      The chat overflow menu currently `alert()`s and unmatches instead of recording a report.
+- [x] Blocks & reports UI (migration 010). Chat overflow menu opens a real dialog: six
+      categories, optional free text, "also block" checked by default. Blocking writes through
+      the user's own client (the blocks policy requires blocker = caller), then ends the match
+      with the service role, which locks the thread since the messages policy needs `connected`.
+      Discovery needed no change — `match_candidate_profiles` already excludes blocked pairs.
+      Unblock lives on `/profile`. 010 also closed a hole in the 001 reports policy, which passed
+      when `reporter_profile_id IS NULL` and so allowed unlimited unattributable reports against
+      anyone; and added `category`, `status` and `conversation_id`, without which a report was
+      untriageable.
+- [ ] **Nobody reads the report queue.** Reports land with `status='open'` and there is no admin
+      view — the moderation loop is open at the far end (ROADMAP 5.2).
 - [ ] Turnstile on the auth forms (ROADMAP 5.3) — now about credential stuffing, not email-bombing.
 
 ### Completed in Phase 2
