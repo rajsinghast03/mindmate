@@ -70,10 +70,33 @@ Without Supabase env vars, the app works fully offline using `localStorage` and 
 4. Authentication → Providers → **Google**: enable and paste a Google Cloud OAuth client ID and
    secret. In Google Cloud Console the authorized redirect URI is **Supabase's**, not the app's:
    `https://<project-ref>.supabase.co/auth/v1/callback`.
-5. Add redirect URLs under Authentication → URL Configuration (every origin you use, both paths):
-   - `http://localhost:3000/auth/callback` and `http://localhost:3000/auth/confirm`
-   - `http://YOUR_LAN_IP:3000/auth/callback` and `.../auth/confirm` (phone on the same Wi‑Fi)
-   - Site URL: whichever origin you use most (e.g. `http://localhost:3000`)
+5. Add redirect URLs under Authentication → URL Configuration. Use a glob per origin —
+   `http://localhost:3000/**`, and `http://YOUR_LAN_IP:3000/**` for a phone on the same Wi-Fi.
+
+   A glob rather than a list because the app builds four different targets from
+   `window.location.origin`, three of them carrying query parameters:
+
+   | Built at | Target |
+   |---|---|
+   | `components/google-button.tsx` | `/auth/callback?next=…` |
+   | `components/auth-form.tsx` | `/auth/complete?draft=…&next=…` |
+   | `app/auth/forgot-password/page.tsx` | `/auth/reset-password` |
+   | the confirmation email | `/auth/confirm?token_hash=…` |
+
+   `/auth/complete` is the one that gets missed — it is a page, not a route handler. Leave it
+   un-allowlisted and Supabase quietly substitutes the Site URL, so the `draft` token never
+   reaches the email and the profile text the user wrote before signing up is lost. No error
+   appears anywhere: they confirm successfully and land on an empty `/onboarding/paste`.
+
+   Site URL is separate and project-wide: it is what `{{ .SiteURL }}` expands to in the email
+   templates, so it is the host every confirmation link points at. In production set it to the
+   real origin — which means confirmation emails triggered from localhost will link to
+   production. Use Google sign-in locally, or an already-confirmed account.
+
+   Watch `www` vs apex. `app/auth/confirm/route.ts` runs `next` through `sameOriginPath`, which
+   discards it when its origin differs from the one serving the request. Signing up on `www`
+   while Site URL is the apex throws the `draft` token away for exactly that reason, so redirect
+   one to the other at the edge.
 6. Copy credentials into `.env.local`:
 
    **Project URL** — open **Connect** (top of dashboard), or go to **Settings → Data API**.

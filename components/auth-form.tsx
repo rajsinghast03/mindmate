@@ -84,6 +84,22 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     return res.ok ? token : null;
   };
 
+  /**
+   * Where the confirmation email should land, draft token included.
+   *
+   * Shared by signup and resend so the two cannot drift — they did, and the
+   * resend was silently dropping the token. Re-stashing on a resend is safe:
+   * stashDraft mints a fresh token from the localStorage copy, and the user has
+   * to be in the original browser to have reached the Resend button at all. The
+   * orphaned first token expires on its own 24-hour TTL.
+   */
+  const confirmationRedirect = async (): Promise<string> => {
+    const token = await stashDraft();
+    const redirect = new URL(completePath, window.location.origin);
+    if (token) redirect.searchParams.set('draft', token);
+    return redirect.toString();
+  };
+
   const handleSignup = async () => {
     if (password.length < MIN_PASSWORD_LENGTH) {
       throw new Error(`Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`);
@@ -92,16 +108,13 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       throw new Error('Those two passwords do not match.');
     }
 
-    const token = await stashDraft();
-
-    const redirect = new URL(completePath, window.location.origin);
-    if (token) redirect.searchParams.set('draft', token);
+    const redirect = await confirmationRedirect();
 
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: redirect.toString() },
+      options: { emailRedirectTo: redirect },
     });
 
     if (error) throw error;
@@ -169,7 +182,16 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     setResendState('sending');
     try {
       const supabase = createClient();
-      await supabase.auth.resend({ type: 'signup', email: email.trim() });
+      await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+        // Without this the resent link carries no draft token, and the profile
+        // the user wrote before signing up is gone — they confirm successfully
+        // and land on an empty /onboarding/paste. It survived testing because
+        // the localStorage copy covers the same-browser case, which is the only
+        // case anyone checks by hand.
+        options: { emailRedirectTo: await confirmationRedirect() },
+      });
     } catch {
       // Reported as sent regardless — same reason the signup panel is unconditional.
     }

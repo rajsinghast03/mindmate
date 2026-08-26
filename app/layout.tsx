@@ -30,6 +30,9 @@ const newsreader = Newsreader({
  */
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://mindmate.site';
 
+/** Kept in step with app/robots.ts — see the note there. */
+const NOINDEX = Boolean(process.env.SITE_NOINDEX);
+
 const TITLE = 'Mindmate — Find People Who Think Like You';
 const DESCRIPTION =
   'Your next co-founder, creative collaborator, intellectual friend, or hobby partner. Mindmate matches people through written ideas and AI text resonance — with zero photo bias or superficial swipe feeds.';
@@ -63,11 +66,20 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
-  },
+  // robots.txt asks crawlers not to fetch; this tells the ones that fetched
+  // anyway not to index. Belt and braces, because only this half survives a
+  // crawler arriving at a URL from a link rather than from the root.
+  robots: NOINDEX
+    ? {
+        index: false,
+        follow: false,
+        googleBot: { index: false, follow: false },
+      }
+    : {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+      },
 };
 
 export default function RootLayout({
