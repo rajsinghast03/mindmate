@@ -241,8 +241,9 @@ export default function PrivacyPage() {
           </p>
         </Callout>
         <p>
-          A profile draft saved during signup but never completed is deleted automatically within 24
-          hours. Otherwise we keep your data for as long as your account exists.
+          A profile draft saved during signup but never completed stops being usable after 24 hours
+          and is deleted automatically shortly afterwards. Otherwise we keep your data for as long
+          as your account exists.
         </p>
       </Section>
 
