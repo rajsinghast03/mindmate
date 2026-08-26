@@ -221,16 +221,38 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
         constantly on the difficult subjects these conversations exist for. Revisit only if
         reports start arriving faster than they can be read by hand, and prefer flagging for the
         queue over blocking the send.
-- [ ] **5.3 Auth Abuse Prevention** — deliberately deferred to just before deploy (Phase 6).
-      All of it is dashboard configuration plus a widget on three forms; none of it is useful
-      while the app is only reachable on localhost, and Turnstile adds the first third-party
-      script to pages whose pitch is that nothing watches you.
-  - Cloudflare Turnstile (or hCaptcha) on the sign-in, sign-up and forgot-password forms via
-    Supabase's native CAPTCHA support. The threat changed with the auth rewrite: it is now
-    credential stuffing against `signInWithPassword`, plus signup and reset-link spam through
-    our Resend quota.
-  - Tighten Supabase Auth rate limits per email/IP for sign-in attempts and confirmation resends.
-  - Monitor Resend delivery dashboard for unusual send spikes.
+- [x] **5.3 Auth Abuse Prevention** — Cloudflare Turnstile live on sign-in, sign-up and
+      forgot-password via Supabase's native CAPTCHA support.
+
+      The threat was never a flood. Resend caps at 100 emails/day, so a bot doing ordinary-looking
+      signups burns the allowance in a few hours and real signups then get no confirmation email —
+      traffic small enough that Vercel would never notice it.
+
+      Which ruled out most defences, because **signup does not pass through this app**.
+      `auth-form.tsx` calls `supabase.auth.signUp()` on the browser client, so the request goes
+      straight from the visitor to `<project>.supabase.co`. Middleware, a Vercel WAF rule, even
+      Cloudflare in front of the domain — none of them are in that path. Only something inside
+      Supabase is, which is why this is a CAPTCHA and not a rate limit.
+
+      Verified by bypassing the form the way an attacker would — `POST /auth/v1/signup` direct to
+      Supabase now returns `captcha_failed`, where it previously created a user. Note this cannot
+      be tested from a headless browser: Turnstile correctly refuses to solve for one, so the
+      widget half needs a real browser. The single-use-token reset matters more than it looks —
+      without it, one wrong password makes the retry fail with a CAPTCHA error instead of "wrong
+      password". Real widget height is 71px; the signup card was re-tightened to absorb it and
+      clears 1280x720 by ~3px, 1280x800 by ~83px.
+
+  - [x] Turnstile widget + `captchaToken` on all four calls (`signUp`, `signInWithPassword`,
+        `resend`, `resetPasswordForEmail`). Google OAuth takes no token and sends no email.
+  - [x] `/api/onboarding-draft` hardened — it stored `{ ...draft, ... }`, so only
+        `curiosityProfile` was ever validated and every other key went into the JSONB column
+        unbounded, capped only by the ~4.5MB platform body limit. Now an eight-field allow-list.
+  - [ ] Lower Supabase's "emails sent" rate limit to ~4/hour. It currently sits at ~30, which is
+        720/day against Resend's 100/day ceiling — Supabase keeps accepting long after Resend has
+        stopped delivering.
+  - [ ] Optional: a Vercel WAF rate-limit rule on `/api/onboarding-draft` (Hobby allows 3 custom
+        rules). Lower priority now the payload is bounded.
+  - [ ] Monitor Resend delivery dashboard for unusual send spikes.
 
 ---
 
