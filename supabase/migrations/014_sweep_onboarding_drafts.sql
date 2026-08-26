@@ -23,16 +23,24 @@
 --
 -- REQUIRES pg_cron. Enable it first under Database > Extensions in the Supabase
 -- dashboard; it needs shared_preload_libraries and so cannot be turned on from a
--- plain CREATE EXTENSION here. The guard below makes this file safe to run either
--- way — without the extension it reports what to do instead of failing.
+-- plain CREATE EXTENSION here.
+--
+-- The check below RAISES rather than returning quietly, and that is the whole
+-- point of it. The first version of this file emitted a NOTICE and returned, so
+-- running it without the extension reported success, scheduled nothing, and gave
+-- no visible sign of either — which is exactly what happened, and was only caught
+-- because an expired probe row survived a scheduled run. A migration that cannot
+-- do its job must say so where you cannot miss it. Re-running after enabling the
+-- extension is safe and is the intended recovery.
 
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
-    RAISE NOTICE
-      'pg_cron is not enabled — turn it on under Database > Extensions, then run this file again. '
-      'Until then the opportunistic sweep in app/api/onboarding-draft/route.ts is the only cleanup.';
-    RETURN;
+    RAISE EXCEPTION
+      'pg_cron is not enabled. Turn it on under Database > Extensions, then run this file again.'
+      USING HINT =
+        'Until then the opportunistic sweep in app/api/onboarding-draft/route.ts is the only cleanup, '
+        'and it runs only when someone signs up.';
   END IF;
 
   -- Idempotent, matching the rest of the migrations: re-running replaces the job
