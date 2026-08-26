@@ -53,6 +53,17 @@ interface MindmateContextType {
   /** Clear the unread badge for a thread and persist the read mark. */
   markConversationRead: (conversationId: string) => void;
   /**
+   * When this user last opened the notification panel, or null if never. The
+   * bell counts a match whose `updatedAt` is later than this as unseen.
+   */
+  notificationsSeenAt: string | null;
+  /**
+   * Mark connection notifications seen up to `throughUpdatedAt` — pass the newest
+   * `updatedAt` currently on screen, so opening the panel clears exactly what was
+   * shown and nothing that arrives a moment later.
+   */
+  markNotificationsSeen: (throughUpdatedAt: string) => void;
+  /**
    * The thread the user is currently looking at, if any. Registered by the chat
    * page so incoming messages there never light the badge.
    */
@@ -98,8 +109,24 @@ function buildMatchesFromPool(userProfile: Profile, pool: Profile[], passedSet: 
       direction: null,
       conversationId: null,
       createdAt: new Date().toISOString(),
+      // No transitions happen in local mode — status is mutated in place rather
+      // than round-tripped — so the two stamps are always the same instant.
+      updatedAt: new Date().toISOString(),
     };
   });
+}
+
+/**
+ * Is `candidate` strictly later than `current`? Compared as instants rather than
+ * strings: these timestamps come from two different columns, and PostgREST emits
+ * fractional seconds only when a value has them, so "…:00+00:00" and
+ * "…:00.5+00:00" do not sort correctly as text. A null `current` means no mark
+ * has been set yet, so anything is later.
+ */
+function isLater(candidate: string | null, current: string | null): boolean {
+  if (!candidate) return false;
+  if (!current) return true;
+  return Date.parse(candidate) > Date.parse(current);
 }
 
 export function MindmateProvider({ children }: { children: React.ReactNode }) {
@@ -115,6 +142,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
    * what the pages gate on; this is for chrome that only needs the session.
    */
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+  const [notificationsSeenAt, setNotificationsSeenAt] = useState<string | null>(null);
 
   // Guards the top-up call so a re-render storm can't fire several generations.
   const generating = useRef(false);
@@ -124,8 +152,20 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   const activeConversationId = useRef<string | null>(null);
 
   const applyState = useCallback(
-    (payload: { matches?: Match[]; conversations?: Conversation[] }) => {
+    (payload: {
+      matches?: Match[];
+      conversations?: Conversation[];
+      notificationsSeenAt?: string | null;
+    }) => {
       if (payload.matches) setMatches(payload.matches);
+      // Never move the mark backwards. The optimistic write in
+      // markNotificationsSeen lands before its POST does, and a refetch racing
+      // in between would otherwise carry the pre-write value and re-light the
+      // badge the user just cleared.
+      const incomingSeenAt = payload.notificationsSeenAt;
+      if (incomingSeenAt !== undefined) {
+        setNotificationsSeenAt(prev => (isLater(incomingSeenAt, prev) ? incomingSeenAt : prev));
+      }
       if (payload.conversations) {
         // The thread on screen is read by definition. Without this the badge
         // blips to 1 and back on every arrival: the provider's message listener
@@ -185,6 +225,37 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       for (const timer of timers.values()) clearTimeout(timer);
       timers.clear();
     };
+  }, []);
+
+  /**
+   * Clear the bell, then persist.
+   *
+   * The optimistic value is the newest `updatedAt` the panel was showing, not
+   * `Date.now()`. Both matter: the badge has to clear on the same frame the panel
+   * opens, and using the data's own clock means it clears exactly the items that
+   * were on screen — a request arriving during the round-trip has a later
+   * `updatedAt` and survives. The server's reply then replaces it with the
+   * database's NOW(), which is the value that has to be right, since it is what
+   * `updatedAt` is compared against after a reload.
+   */
+  const markNotificationsSeen = useCallback((throughUpdatedAt: string) => {
+    setNotificationsSeenAt(prev => (isLater(throughUpdatedAt, prev) ? throughUpdatedAt : prev));
+
+    if (!SUPABASE_MODE) return;
+
+    void fetch('/api/notifications/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ through: throughUpdatedAt }),
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.lastSeenAt) setNotificationsSeenAt(data.lastSeenAt);
+      })
+      .catch(() => {
+        // Best-effort, same as the conversation read mark: a failed write just
+        // means the bell lights again on the next load.
+      });
   }, []);
 
   /** Ask the server to top up suggestions, then adopt whatever state it returns. */
@@ -674,6 +745,8 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         sendMessage,
         unmatchConversation,
         markConversationRead,
+        notificationsSeenAt,
+        markNotificationsSeen,
         setActiveConversationId,
         togglePauseDiscovery,
         resetAllData,

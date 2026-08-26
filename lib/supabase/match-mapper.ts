@@ -11,6 +11,7 @@ export type DbMatch = {
   status: MatchStatus;
   requested_by_profile_id: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type DbCandidate = {
@@ -92,5 +93,6 @@ export function dbMatchToMatch(
     direction: matchDirection(row, viewerProfileId),
     conversationId,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }

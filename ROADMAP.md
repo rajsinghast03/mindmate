@@ -272,6 +272,19 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
           pill/button to their own row below `sm`.
 
       Final state: zero horizontal overflow on every route at 430, 390, 360 and 320.
+
+      Re-measured when the notification bell was added, driving headless Chrome over CDP with
+      every badge lit. The bell costs 40px — its badge is absolutely positioned, so it spends no
+      layout width. Two consequences:
+
+        * The **admin shield is now hidden below `sm`**. With it, the nav came to 288px against
+          288px of usable width at 320px and tipped into sideways scroll; without it, 248px at
+          both 360 and 320. Moderating the report queue is not a phone task.
+        * The **panel is a full-width sheet below `sm`**, not a dropdown hung off the bell. The
+          bell sits ~100px from the right edge, so a 20rem panel anchored to it started at a
+          negative x and had its left column clipped — the section header and every avatar. Worth
+          recording that no overflow assertion catches this: content spilling past the *left*
+          edge is clipped silently and adds no `scrollWidth`. A screenshot caught it.
 - [~] WCAG AA contrast audit — done; **coral fixed, greys deliberately not**.
       9 of 26 real combinations failed. All coral text moved to `accent-700` (5.53:1 on paper,
       was 3.99) and white-on-coral badges and confirm buttons to an `accent-700` ground (5.76:1,

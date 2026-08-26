@@ -218,9 +218,31 @@ async function loadConversationSummaries(
   return summaries;
 }
 
+/**
+ * When this viewer last opened the notification panel; null if they never have.
+ * The bell treats a match whose updatedAt is later than this as unseen.
+ */
+async function loadNotificationsSeenAt(
+  service: ServiceClient,
+  profileId: string
+): Promise<string | null> {
+  const { data, error } = await service
+    .from('notification_reads')
+    .select('last_seen_at')
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  // Never seeing the panel is the normal first-run state, and a failure here
+  // should not take down the whole match state — the bell just shows everything
+  // as unseen, which is the safe direction to be wrong in.
+  if (error) return null;
+  return data?.last_seen_at ?? null;
+}
+
 export type MatchState = {
   matches: Match[];
   conversations: Conversation[];
+  notificationsSeenAt: string | null;
 };
 
 /**
@@ -235,9 +257,10 @@ export async function loadMatchState(
   // the match rows. Running both together saves a round trip on every load; the
   // cost is one wasted RPC for a user with no connections, which is concurrent
   // and so free in wall time.
-  const [matches, summaries] = await Promise.all([
+  const [matches, summaries, notificationsSeenAt] = await Promise.all([
     loadActiveMatches(service, profileId),
     loadConversationSummaries(service, profileId),
+    loadNotificationsSeenAt(service, profileId),
   ]);
 
   const connected = matches.filter((m) => m.status === 'connected' && m.conversationId);
@@ -262,5 +285,5 @@ export async function loadMatchState(
     })
     .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt));
 
-  return { matches, conversations };
+  return { matches, conversations, notificationsSeenAt };
 }

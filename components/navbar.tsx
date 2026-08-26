@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
 import { Logo } from '@/components/logo';
+import { NotificationBell } from '@/components/notification-bell';
 import { Sparkles, MessageSquare, User, Compass, LogOut, ArrowRight, ShieldAlert } from 'lucide-react';
 
 export function Navbar() {
@@ -24,13 +25,10 @@ export function Navbar() {
     pathname.startsWith('/onboarding') || pathname.startsWith('/auth');
 
   const suggestedCount = matches.filter(m => m.status === 'suggested').length;
-  const incomingRequestCount = matches.filter(
-    m => m.status === 'requested' && m.direction === 'incoming'
-  ).length;
-  // Both halves are things the user has to act on. A plain conversation count was
-  // not — it never went down, so it never meant anything.
+  // Unread messages only. Incoming requests used to be added in here, where they
+  // were indistinguishable from three unread messages; the bell owns them now, and
+  // counting them in both places would report one event twice.
   const unreadCount = conversations.reduce((total, c) => total + c.unreadCount, 0);
-  const connectionsCount = unreadCount + incomingRequestCount;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-paper-300/80 bg-paper-100/90 backdrop-blur-md transition-all">
@@ -112,23 +110,26 @@ export function Navbar() {
               >
                 <MessageSquare className="h-4 w-4" />
                 <span className="hidden sm:inline">Conversations</span>
-                {connectionsCount > 0 && (
-                  <span
-                    className={`ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
-                      incomingRequestCount > 0 ? 'bg-accent-700' : 'bg-sage-700'
-                    }`}
-                  >
-                    {connectionsCount}
+                {unreadCount > 0 && (
+                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-700 px-1 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </Link>
+
+              <NotificationBell />
 
               {authUser?.isAdmin && (
                 <Link
                   href="/admin/reports"
                   title="Report queue"
                   aria-label="Report queue"
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:px-3.5 ${
+                  // Hidden below sm. Measured at 320px with every badge lit, the
+                  // admin nav came to 288px against 288px of usable width and
+                  // tipped the page into sideways scroll; without the shield it is
+                  // 248px. Moderating the report queue is not a 320px-phone task,
+                  // and this is the only nav item that is safe to drop.
+                  className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-all sm:flex sm:px-3.5 ${
                     pathname.startsWith('/admin')
                       ? 'bg-paper-200 text-ink-950 font-semibold shadow-sm'
                       : 'text-ink-600 hover:bg-paper-200/60 hover:text-ink-900'

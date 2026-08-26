@@ -63,6 +63,13 @@ export type Match = {
   /** Set once mutually connected. */
   conversationId?: string | null;
   createdAt: string;
+  /**
+   * Last status transition. For a `requested` match this is when the request was
+   * sent; for a `connected` one, when it was accepted — in both cases the only
+   * other writes are the ones that end that state. The notification bell reads it
+   * as the event time, which is why no separate requested_at/accepted_at exists.
+   */
+  updatedAt: string;
 };
 
 export type Message = {
