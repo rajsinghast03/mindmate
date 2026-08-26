@@ -1,14 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowLeft, Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Turnstile, TurnstileHandle, turnstileEnabled } from '@/components/turnstile';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +26,7 @@ export default function ForgotPasswordPage() {
       // session and forwards here; this redirectTo is the post-verification landing.
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/auth/reset-password`,
+        captchaToken: captchaToken ?? undefined,
       });
 
       // Note the error is swallowed for anything that would reveal whether the
@@ -35,6 +39,9 @@ export default function ForgotPasswordPage() {
       setErrorMessage(
         err instanceof Error ? err.message : 'Could not send the reset link. Please try again.'
       );
+    } finally {
+      // Single-use token — see the same note in components/auth-form.tsx.
+      turnstileRef.current?.reset();
     }
   };
 
@@ -107,9 +114,11 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
+            <Turnstile onToken={setCaptchaToken} handleRef={turnstileRef} />
+
             <button
               type="submit"
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || (turnstileEnabled && !captchaToken)}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-ink-950 px-6 py-3.5 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-ink-800 disabled:opacity-60"
             >
               {status === 'loading' ? (

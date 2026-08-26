@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { setAuthNextCookie, getOnboardingDraft, safeNextPath } from '@/lib/onboarding-draft';
 import { GoogleButton } from '@/components/google-button';
 import { Mail, Lock, Loader2, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { Turnstile, TurnstileHandle, turnstileEnabled } from '@/components/turnstile';
 
 const AUTH_COMPLETE_PATH = '/auth/complete';
 
@@ -28,6 +29,8 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
@@ -114,7 +117,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: redirect },
+      options: { emailRedirectTo: redirect, captchaToken: captchaToken ?? undefined },
     });
 
     if (error) throw error;
@@ -137,6 +140,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
+      options: { captchaToken: captchaToken ?? undefined },
     });
 
     if (error) {
@@ -175,6 +179,12 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
             ? 'Could not create your account. Please try again.'
             : 'Could not sign you in. Please try again.'
       );
+    } finally {
+      // A Turnstile token is spent the moment Supabase verifies it. Without this,
+      // getting your password wrong once means the retry fails with a CAPTCHA
+      // error rather than "wrong password" — the confusing failure that makes
+      // people give up rather than try again.
+      turnstileRef.current?.reset();
     }
   };
 
@@ -190,10 +200,15 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         // and land on an empty /onboarding/paste. It survived testing because
         // the localStorage copy covers the same-browser case, which is the only
         // case anyone checks by hand.
-        options: { emailRedirectTo: await confirmationRedirect() },
+        options: {
+          emailRedirectTo: await confirmationRedirect(),
+          captchaToken: captchaToken ?? undefined,
+        },
       });
     } catch {
       // Reported as sent regardless — same reason the signup panel is unconditional.
+    } finally {
+      turnstileRef.current?.reset();
     }
     setResendState('sent');
   };
@@ -299,7 +314,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         <span className="h-px flex-1 bg-paper-300" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>
           <label
             htmlFor="email"
@@ -403,9 +418,14 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
           </div>
         )}
 
+        <Turnstile onToken={setCaptchaToken} handleRef={turnstileRef} />
+
         <button
           type="submit"
-          disabled={loading}
+          // Only gate on the token when Turnstile is actually configured —
+          // otherwise a deployment without the site key would have a button
+          // nobody could ever press.
+          disabled={loading || (turnstileEnabled && !captchaToken)}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-ink-950 px-6 py-3.5 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-ink-800 disabled:opacity-60"
         >
           {loading ? (
