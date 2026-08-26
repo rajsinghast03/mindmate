@@ -243,7 +243,7 @@ export default function ProfileSettingsPage() {
           <div className="space-y-2.5 text-xs text-ink-600">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-sage-500 shrink-0" />
-              <span>Zero access to your external ChatGPT account or chat history.</span>
+              <span>Zero access to your external AI assistant account or chat history.</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-sage-500 shrink-0" />

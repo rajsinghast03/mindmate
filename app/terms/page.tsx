@@ -10,8 +10,7 @@ export const metadata: Metadata = {
 
 const UPDATED = '26 August 2026';
 const CONTACT = 'rajsinghast03@gmail.com';
-/** Fill in before relying on the jurisdiction clause. */
-const CITY = '[CITY]';
+const CITY = 'Gurgaon';
 
 export default function TermsPage() {
   return (

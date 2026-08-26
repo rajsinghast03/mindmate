@@ -29,7 +29,7 @@ export function Footer() {
           <div className="flex flex-wrap items-center gap-6 text-xs text-ink-600">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-sage-500" />
-              <span>Zero ChatGPT scraping & zero public feeds</span>
+              <span>Zero chat-log scraping & zero public feeds</span>
             </div>
             <Link href="/profile" className="hover:text-ink-950 transition-colors">
               Privacy Settings

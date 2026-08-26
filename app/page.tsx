@@ -262,7 +262,7 @@ export default function LandingPage() {
                   Zero Scraping
                 </h4>
                 <p className="text-xs text-ink-600 mt-1 leading-relaxed">
-                  We never access your ChatGPT account or raw chat logs. You
+                  We never access your AI assistant account or raw chat logs. You
                   paste and approve only what you choose to share.
                 </p>
               </div>

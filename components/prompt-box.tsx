@@ -72,7 +72,7 @@ export function PromptBox() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
         <div className="flex items-center gap-1.5 text-xs text-ink-500">
           <ShieldCheck className="h-4 w-4 text-sage-500 shrink-0" />
-          <span>We never connect to or read your ChatGPT account.</span>
+          <span>We never connect to or read your AI assistant account.</span>
         </div>
 
         <button
