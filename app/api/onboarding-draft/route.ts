@@ -9,6 +9,34 @@ const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 /** Rejects anything that isn't a v4-shaped UUID from crypto.randomUUID(). */
 const TOKEN_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** The instant before which a draft is expired and must no longer exist. */
+function expiredBefore(): string {
+  return new Date(Date.now() - DRAFT_TTL_MS).toISOString();
+}
+
+/**
+ * Delete drafts past the TTL, on the way past.
+ *
+ * The TTL used to be a read filter only, so an abandoned signup left its
+ * Curiosity Profile, display name, age and city sitting in this table forever —
+ * unreadable through the API, but very much still stored. Migration 008 keys the
+ * table on a random token with no foreign key to profiles, which is what makes
+ * the draft safe to accept before an account exists, but it also means deleting
+ * an account cannot reach these rows. Nothing else would ever remove them.
+ *
+ * Opportunistic rather than scheduled: this table only sees traffic during
+ * signup, so piggy-backing on that traffic keeps expired rows from accumulating
+ * without needing a cron job. Failures are swallowed — a sweep that could not run
+ * must never break the signup it was riding along with; the next request retries.
+ */
+async function sweepExpired(supabase: ReturnType<typeof createServiceClient>) {
+  try {
+    await supabase.from('onboarding_drafts').delete().lt('updated_at', expiredBefore());
+  } catch {
+    /* best effort */
+  }
+}
+
 /**
  * Stash an onboarding draft so it survives the trip to the confirmation inbox.
  *
@@ -59,6 +87,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  await sweepExpired(supabase);
+
   return NextResponse.json({ success: true });
 }
 
@@ -80,14 +110,14 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Bound how long a stashed draft can sit waiting to be claimed.
-  const freshSince = new Date(Date.now() - DRAFT_TTL_MS).toISOString();
-
+  // Bound how long a stashed draft can sit waiting to be claimed. Same instant
+  // the sweep uses, so a row can never be simultaneously too old to read and too
+  // young to delete.
   const { data, error } = await supabase
     .from('onboarding_drafts')
     .select('draft')
     .eq('token', token)
-    .gt('updated_at', freshSince)
+    .gt('updated_at', expiredBefore())
     .maybeSingle();
 
   if (error) {
@@ -97,6 +127,8 @@ export async function GET(req: NextRequest) {
   if (data?.draft) {
     await supabase.from('onboarding_drafts').delete().eq('token', token);
   }
+
+  await sweepExpired(supabase);
 
   return NextResponse.json({ draft: data?.draft ?? null });
 }

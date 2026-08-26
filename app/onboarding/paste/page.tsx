@@ -95,7 +95,7 @@ export default function PasteProfilePage() {
                 Don&rsquo;t have your profile yet? Generate it with AI first
               </p>
               <p className="text-xs text-ink-500 mt-0.5">
-                Copy this prompt → paste into ChatGPT or Claude → bring the result back here
+                Copy this prompt → paste into ChatGPT or Gemini → bring the result back here
               </p>
             </div>
           </div>

@@ -16,7 +16,7 @@ const HOW_IT_WORKS = [
   {
     step: "01",
     title: "Ask AI for your Curiosity Profile",
-    desc: "Use our privacy-safe prompt in ChatGPT or Claude. In ~100 words, it captures the questions, crafts, and themes you keep returning to—nothing personal, nothing identifying.",
+    desc: "Use our privacy-safe prompt in ChatGPT or Gemini. In ~100 words, it captures the questions, crafts, and themes you keep returning to—nothing personal, nothing identifying.",
   },
   {
     step: "02",

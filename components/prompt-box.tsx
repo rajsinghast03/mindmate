@@ -28,7 +28,19 @@ export function PromptBox() {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/*
+          Plain https links on purpose — no app-scheme trickery needed. Both hosts
+          declare app links publicly (chatgpt.com's apple-app-site-association and
+          assetlinks.json cover iOS and Android; gemini.google.com's assetlinks
+          covers Android), so on a phone with the app installed the OS claims the
+          tap and opens the app. Desktop has no app to claim it and opens the web.
+
+          Gemini on iOS is the one gap, and it is Google's: their universal-link
+          paths only match /app/* with ?target=agent or ?target=spark, so a bare
+          /app opens Safari. Not worth shipping an undocumented routing parameter
+          to save a tap.
+        */}
+        <div className="flex items-center gap-3">
           <a
             href="https://chatgpt.com"
             target="_blank"
@@ -36,6 +48,16 @@ export function PromptBox() {
             className="inline-flex items-center gap-1 text-xs font-medium text-ink-600 hover:text-ink-950 transition-colors"
           >
             <span>Open ChatGPT</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+          <span aria-hidden="true" className="text-ink-300">·</span>
+          <a
+            href="https://gemini.google.com/app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-ink-600 hover:text-ink-950 transition-colors"
+          >
+            <span>Open Gemini</span>
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
