@@ -33,52 +33,6 @@ type ConversationContext = {
   candidate: DbCandidate;
 };
 
-/**
- * Resolve a conversation the caller belongs to.
- *
- * The membership check is the RLS policy itself: the conversations SELECT policy
- * only exposes rows whose match includes the caller's profile, so a non-member
- * simply gets nothing back here.
- */
-async function loadContext(
-  service: ServiceClient,
-  userScoped: Awaited<ReturnType<typeof createClient>>,
-  conversationId: string,
-  viewerProfileId: string
-): Promise<ConversationContext | null> {
-  const { data: conversation } = await userScoped
-    .from('conversations')
-    .select('id, match_id, created_at')
-    .eq('id', conversationId)
-    .maybeSingle();
-
-  if (!conversation) return null;
-
-  const { data: matchRow } = await service
-    .from('matches')
-    .select('*')
-    .eq('id', conversation.match_id)
-    .maybeSingle();
-
-  if (!matchRow || !isParty(matchRow as DbMatch, viewerProfileId)) return null;
-
-  const match = matchRow as DbMatch;
-
-  const { data: candidate } = await service
-    .from('profiles')
-    .select(CANDIDATE_COLUMNS)
-    .eq('id', counterpartId(match, viewerProfileId))
-    .maybeSingle();
-
-  if (!candidate) return null;
-
-  return {
-    matchId: match.id,
-    createdAt: conversation.created_at,
-    match,
-    candidate: candidate as DbCandidate,
-  };
-}
 
 /**
  * When this viewer last removed the thread from their inbox, or null if never.
@@ -112,6 +66,46 @@ function readPageSize(value: string | null): number {
   return Math.min(parsed, MAX_PAGE_SIZE);
 }
 
+/**
+ * Resolve the conversation and its match in one round trip.
+ *
+ * The membership check is the RLS policy itself: the conversations SELECT policy
+ * only exposes rows whose match includes the caller's profile, so a non-member
+ * simply gets nothing back here. The match is embedded rather than fetched
+ * separately, which is why this reads through the caller's client and not the
+ * service one.
+ */
+async function loadConversationMatch(
+  userScoped: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  viewerProfileId: string
+): Promise<{ match: DbMatch; createdAt: string } | null> {
+  const { data } = await userScoped
+    .from('conversations')
+    .select('id, match_id, created_at, matches(*)')
+    .eq('id', conversationId)
+    .maybeSingle();
+
+  const match = (data?.matches ?? null) as DbMatch | null;
+  if (!data || !match || !isParty(match, viewerProfileId)) return null;
+
+  return { match, createdAt: data.created_at };
+}
+
+/** The counterpart's approved profile, for the thread header and dossier. */
+async function loadCandidate(
+  service: ServiceClient,
+  profileId: string
+): Promise<DbCandidate | null> {
+  const { data } = await service
+    .from('profiles')
+    .select(CANDIDATE_COLUMNS)
+    .eq('id', profileId)
+    .maybeSingle();
+
+  return (data as DbCandidate) ?? null;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -133,14 +127,24 @@ export async function GET(
 
   const supabase = await createClient();
   const service = createServiceClient();
-  const context = await loadContext(service, supabase, conversationId, result.viewer.profileId);
-
-  if (!context) {
-    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-  }
+  const viewerProfileId = result.viewer.profileId;
 
   const limit = readPageSize(req.nextUrl.searchParams.get('limit'));
   const before = req.nextUrl.searchParams.get('before');
+
+  // Wave 1: the membership check and the hide mark need nothing from each other.
+  const [base, hiddenAt] = await Promise.all([
+    loadConversationMatch(supabase, conversationId, viewerProfileId),
+    loadHiddenAt(supabase, conversationId, viewerProfileId),
+  ]);
+
+  if (!base) {
+    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+  }
+
+  // The counterpart's id comes off the match row itself, so the read receipt does
+  // not have to wait for their profile to load.
+  const candidateId = counterpartId(base.match, viewerProfileId);
 
   // Newest-first with one extra row: the extra is how we know there is another
   // page without a second count query. Reversed to ascending before mapping.
@@ -148,8 +152,6 @@ export async function GET(
   // The cursor is `created_at` alone. timestamptz is microsecond-resolution, so
   // two messages in one conversation sharing an instant is not a real scenario;
   // a composite (created_at, id) keyset would cost the index scan for nothing.
-  const hiddenAt = await loadHiddenAt(supabase, conversationId, result.viewer.profileId);
-
   let query = supabase
     .from('messages')
     .select('*')
@@ -162,10 +164,39 @@ export async function GET(
   // the delete into messages this viewer removed.
   if (hiddenAt) query = query.gt('created_at', hiddenAt);
 
-  const { data: rows, error } = await query;
+  // Wave 2: four independent reads. These used to run one after another, which is
+  // most of what made opening a thread slow.
+  //
+  // `count` must stay the thread total, not the page length — the inbox and the
+  // header both read it. `peerRead` is the authoritative read receipt: live updates
+  // ride the conversation's broadcast channel, but broadcast is ephemeral, so this
+  // is the fallback on load and on every resync.
+  const [
+    { data: rows, error },
+    { count },
+    { data: peerRead },
+    candidate,
+  ] = await Promise.all([
+    query,
+    supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId),
+    service
+      .from('conversation_reads')
+      .select('last_read_at')
+      .eq('conversation_id', conversationId)
+      .eq('profile_id', candidateId)
+      .maybeSingle(),
+    loadCandidate(service, candidateId),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!candidate) {
+    return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
   }
 
   const page = (rows ?? []) as DbMessage[];
@@ -175,37 +206,19 @@ export async function GET(
     .reverse()
     .map((row) => dbMessageToMessage(row));
 
-  // messageCount must stay the thread total, not the page length — the inbox
-  // and the header both read it.
-  const { count } = await supabase
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('conversation_id', conversationId);
-
-  // When the counterpart last read this thread — the authoritative read receipt.
-  // The live updates arrive over the conversation's broadcast channel, but
-  // broadcast is ephemeral, so this is what the client falls back to on load and
-  // on every resync.
-  const { data: peerRead } = await service
-    .from('conversation_reads')
-    .select('last_read_at')
-    .eq('conversation_id', conversationId)
-    .eq('profile_id', context.candidate.id)
-    .maybeSingle();
-
   // Reaching here means the match is connected, so the raw profile is unlocked.
   const conversation: Conversation = {
     id: conversationId,
-    matchId: context.matchId,
-    candidateProfile: toCandidateSummary(context.candidate, true),
-    sharedQuestion: context.match.shared_question,
-    resonanceSummary: context.match.explanation,
+    matchId: base.match.id,
+    candidateProfile: toCandidateSummary(candidate, true),
+    sharedQuestion: base.match.shared_question,
+    resonanceSummary: base.match.explanation,
     messages,
     messageCount: count ?? messages.length,
     // Unread is owned by the inbox query; a thread you are looking at is read.
     unreadCount: 0,
-    createdAt: context.createdAt,
-    lastActivityAt: messages.at(-1)?.createdAt ?? context.createdAt,
+    createdAt: base.createdAt,
+    lastActivityAt: messages.at(-1)?.createdAt ?? base.createdAt,
   };
 
   return NextResponse.json({
@@ -306,15 +319,39 @@ export async function POST(
 
   // Seeded personas reply so a solo user can experience a real thread. Written with
   // the service client because a demo persona has no session of its own.
+  //
+  // This used to walk conversations, matches and profiles on every
+  // single send, to read one boolean. That is three round trips on the most
+  // latency-visible action in the app, and for a real counterpart all three were
+  // wasted. One targeted lookup instead, and the insert above has already proved
+  // membership, so nothing is being skipped.
   let reply = null;
-  const context = await loadContext(service, supabase, conversationId, viewer.profileId);
+  const { data: pair } = await service
+    .from('conversations')
+    .select(
+      'id, matches(profile_a_id, profile_b_id, a:profiles!profile_a_id(id, is_demo), b:profiles!profile_b_id(id, is_demo))'
+    )
+    .eq('id', conversationId)
+    .maybeSingle();
 
-  if (context?.candidate.is_demo) {
+  const match = (pair?.matches ?? null) as {
+    profile_a_id: string;
+    a: { id: string; is_demo: boolean } | null;
+    b: { id: string; is_demo: boolean } | null;
+  } | null;
+
+  const counterpart = match
+    ? match.profile_a_id === viewer.profileId
+      ? match.b
+      : match.a
+    : null;
+
+  if (counterpart?.is_demo) {
     const { data: replyRow } = await service
       .from('messages')
       .insert({
         conversation_id: conversationId,
-        sender_profile_id: context.candidate.id,
+        sender_profile_id: counterpart.id,
         body: pickDemoReply(),
       })
       .select('*')

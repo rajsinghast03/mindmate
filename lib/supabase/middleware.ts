@@ -68,9 +68,17 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the JWT locally against the project's cached JWKS.
+  // getUser() was a real GET /auth/v1/user over the network on EVERY request this
+  // matcher touches — every page, every /api call, and every RSC prefetch Next
+  // fires for the nav and footer links. That was the single most-repeated round
+  // trip in the app.
+  //
+  // It falls back to getUser() by itself if the token is symmetric (HS256) or
+  // carries no `kid`, so this is safe either way — it is just not a saving unless
+  // the project is on asymmetric signing keys.
+  const { data: claims } = await supabase.auth.getClaims();
+  const user = claims?.claims ? { id: claims.claims.sub } : null;
 
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some(

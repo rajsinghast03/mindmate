@@ -47,12 +47,14 @@ export function parseEmbedding(value: unknown): number[] | null {
 /** Resolve the signed-in user's own profile. Reads through RLS — own row only. */
 export async function loadViewer(): Promise<ViewerResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  // Local JWT verification against cached JWKS rather than a GET /auth/v1/user
+  // round trip. Middleware has already validated the same token on this request;
+  // all this needs from it is the subject id, which the claims carry.
+  const { data: claims, error: authError } = await supabase.auth.getClaims();
+  const userId = claims?.claims?.sub;
+
+  if (authError || !userId) {
     return { ok: false, status: 401, error: 'Unauthorized' };
   }
 
@@ -61,7 +63,7 @@ export async function loadViewer(): Promise<ViewerResult> {
     .select(
       'id, display_name, age, city_or_timezone, iana_timezone, curiosity_profile, visibility, profile_embedding, created_at'
     )
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) return { ok: false, status: 500, error: error.message };
@@ -70,7 +72,7 @@ export async function loadViewer(): Promise<ViewerResult> {
   return {
     ok: true,
     viewer: {
-      userId: user.id,
+      userId,
       profileId: data.id,
       displayName: data.display_name,
       age: data.age,
@@ -124,29 +126,30 @@ export async function loadActiveMatches(
   const matchRows = rows as DbMatch[];
   const counterpartIds = [...new Set(matchRows.map((r) => counterpartId(r, profileId)))];
 
-  const { data: candidates, error: candidateError } = await service
-    .from('profiles')
-    .select(CANDIDATE_COLUMNS)
-    .in('id', counterpartIds);
+  const connectedMatchIds = matchRows.filter((r) => r.status === 'connected').map((r) => r.id);
+
+  // Both of these follow from the match rows, and neither follows from the other —
+  // running them in sequence put a whole round trip on the critical path of
+  // /api/matches, /api/match and /api/matches/[id] alike.
+  const [
+    { data: candidates, error: candidateError },
+    { data: conversations, error: conversationError },
+  ] = await Promise.all([
+    service.from('profiles').select(CANDIDATE_COLUMNS).in('id', counterpartIds),
+    connectedMatchIds.length
+      ? service.from('conversations').select('id, match_id').in('match_id', connectedMatchIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
   if (candidateError) throw new Error(candidateError.message);
+  if (conversationError) throw new Error(conversationError.message);
 
   const candidateById = new Map<string, DbCandidate>(
     (candidates ?? []).map((c: DbCandidate) => [c.id, c])
   );
 
-  const connectedMatchIds = matchRows.filter((r) => r.status === 'connected').map((r) => r.id);
   const conversationByMatch = new Map<string, string>();
-
-  if (connectedMatchIds.length) {
-    const { data: conversations, error: conversationError } = await service
-      .from('conversations')
-      .select('id, match_id')
-      .in('match_id', connectedMatchIds);
-
-    if (conversationError) throw new Error(conversationError.message);
-    for (const c of conversations ?? []) conversationByMatch.set(c.match_id, c.id);
-  }
+  for (const c of conversations ?? []) conversationByMatch.set(c.match_id, c.id);
 
   return matchRows.flatMap((row) => {
     const candidate = candidateById.get(counterpartId(row, profileId));

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { SERVICE_ROLE_MISSING, createServiceClient } from '@/lib/supabase/service';
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
@@ -22,19 +22,19 @@ export async function GET() {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  // Local JWT verification rather than a GET /auth/v1/user round trip. The claims
+  // carry `sub`, `email` and `user_metadata`, which is everything this route reads.
+  const { data: claimsData, error: authError } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
 
-  if (authError || !user) {
+  if (authError || !claims?.sub) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', claims.sub)
     .maybeSingle();
 
   if (error) {
@@ -43,7 +43,7 @@ export async function GET() {
 
   // Google hands back a display name; onboarding uses it as a prefill so an OAuth
   // signup does not start with an empty name field. Absent for password signups.
-  const metadata = user.user_metadata ?? {};
+  const metadata = claims.user_metadata ?? {};
   const fullName =
     typeof metadata.full_name === 'string'
       ? metadata.full_name
@@ -55,7 +55,12 @@ export async function GET() {
     mode: 'supabase',
     // isAdmin, not the allowlist itself — the client needs to know whether to show
     // the queue link, not who else can open it.
-    user: { id: user.id, email: user.email, fullName, isAdmin: isAdminEmail(user.email) },
+    user: {
+      id: claims.sub,
+      email: claims.email,
+      fullName,
+      isAdmin: isAdminEmail(claims.email),
+    },
     profile: data ? dbProfileToProfile(data) : null,
   });
 }
@@ -135,11 +140,25 @@ export async function POST(req: NextRequest) {
   // Migration 011 takes profile_embedding out of what `authenticated` may write:
   // it is what discovery matches on, so a self-written vector could be crafted to
   // sit close to everyone.
+  //
+  // Deferred past the response with `after()`. This calls an embedding provider,
+  // and `fetchWithRetry` gives it 15s per attempt across 3 attempts plus backoff —
+  // so an awaited call could hold a profile save open for the better part of a
+  // minute. The row is already committed above, and /api/match self-heals a null
+  // vector on demand, so nothing depends on this landing before we reply.
   if (textChanged) {
-    await createServiceClient()
-      .from('profiles')
-      .update({ profile_embedding: await generateEmbedding(profileValidation.normalizedText) })
-      .eq('user_id', user.id);
+    const text = profileValidation.normalizedText;
+    const userId = user.id;
+    after(async () => {
+      try {
+        await createServiceClient()
+          .from('profiles')
+          .update({ profile_embedding: await generateEmbedding(text) })
+          .eq('user_id', userId);
+      } catch (err) {
+        console.error('Deferred embedding write failed:', err);
+      }
+    });
   }
 
   return NextResponse.json({ profile: dbProfileToProfile(data) });
@@ -168,8 +187,6 @@ export async function PATCH(req: NextRequest) {
   const body = await requestBody(req);
   if (!body) return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   const updates: Record<string, unknown> = {};
-  // Held aside from `updates` because it goes through the service client below.
-  let newEmbedding: number[] | null = null;
   let embeddingChanged = false;
 
   if (body.displayName !== undefined) {
@@ -196,8 +213,7 @@ export async function PATCH(req: NextRequest) {
       .maybeSingle();
 
     if (!existing || existing.curiosity_profile !== profileValidation.normalizedText) {
-      // Null on failure rather than leaving a vector that describes the old text.
-      newEmbedding = await generateEmbedding(profileValidation.normalizedText);
+      // Generated after the response, not before it — see the note in POST.
       embeddingChanged = true;
     }
   }
@@ -219,10 +235,20 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (embeddingChanged) {
-    await createServiceClient()
-      .from('profiles')
-      .update({ profile_embedding: newEmbedding })
-      .eq('user_id', user.id);
+    const text = String(updates.curiosity_profile);
+    const userId = user.id;
+    after(async () => {
+      try {
+        // Null on failure rather than leaving a vector that describes the old text.
+        const embedding = await generateEmbedding(text);
+        await createServiceClient()
+          .from('profiles')
+          .update({ profile_embedding: embedding })
+          .eq('user_id', userId);
+      } catch (err) {
+        console.error('Deferred embedding write failed:', err);
+      }
+    });
   }
 
   return NextResponse.json({ profile: dbProfileToProfile(data) });

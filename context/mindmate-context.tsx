@@ -10,7 +10,9 @@ import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
 import { validateDisplayName } from '@/lib/validation/display-name';
+import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
 import { clearOnboardingDraft } from '@/lib/onboarding-draft';
+import { usePathname } from 'next/navigation';
 
 /**
  * Same check the server uses, so unfilled .env placeholders can't switch the client
@@ -136,6 +138,7 @@ function isLater(candidate: string | null, current: string | null): boolean {
 }
 
 export function MindmateProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -156,6 +159,8 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   // Held in a ref, not state: only applyState reads it, and re-rendering the whole
   // tree because the user opened a thread would be wasteful.
   const activeConversationId = useRef<string | null>(null);
+  /** Read by patchConversationFromMessage, which must not re-create on profile load. */
+  const userProfileRef = useRef<Profile | null>(null);
 
   const applyState = useCallback(
     (payload: {
@@ -188,6 +193,46 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  /**
+   * Fold one arriving message into the conversation list, without a refetch.
+   *
+   * This used to call the full `GET /api/matches` — the entire match graph, every
+   * counterpart profile and every conversation summary — on every INSERT, including
+   * the echo of a message this user just sent. The row carries everything the list
+   * actually shows, so patch it in place instead.
+   */
+  const patchConversationFromMessage = useCallback((row: DbMessage) => {
+    const message = dbMessageToMessage(row);
+
+    setConversations(prev => {
+      const index = prev.findIndex(c => c.id === message.conversationId);
+      if (index === -1) return prev; // Not a thread we know about; a refetch will pick it up.
+
+      const existing = prev[index];
+      if (existing.messages.some(m => m.id === message.id)) return prev;
+
+      const fromCounterpart = message.senderProfileId !== userProfileRef.current?.id;
+      const isOpen = activeConversationId.current === existing.id;
+
+      const next = [...prev];
+      next[index] = {
+        ...existing,
+        messages: [message],
+        messageCount: existing.messageCount + 1,
+        // The open thread is read by definition — same rule applyState applies.
+        unreadCount:
+          fromCounterpart && !isOpen ? existing.unreadCount + 1 : existing.unreadCount,
+        lastActivityAt: message.createdAt,
+      };
+
+      return next.sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt));
+    });
+  }, []);
+
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
 
   const setActiveConversationId = useCallback((conversationId: string | null) => {
     activeConversationId.current = conversationId;
@@ -362,15 +407,24 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
   }, [applyState]);
 
   // Top up suggestions once the profile is known. Server-side caps at 3.
+  //
+  // Only on Discover. This fires POST /api/match, which runs pgvector retrieval and
+  // up to three LLM syntheses under a 60s ceiling — it was firing on Connections and
+  // inside open chats too, where nothing renders from the result.
+  //
+  // Still gated on `isLoaded` on purpose: the `suggested` guard below reads `matches`,
+  // and running before that has loaded would look like "no suggestions" and fire a
+  // fresh synthesis on every visit.
   useEffect(() => {
     if (!isLoaded || !SUPABASE_MODE || !userProfile) return;
+    if (pathname !== '/discover') return;
     if (userProfile.visibility === 'paused') return;
     if (matches.some(m => m.status === 'suggested')) return;
     void generateSuggestions();
     // Intentionally not keyed on `matches` — this should fire on profile load, not
     // every time the match list changes, or passing a card would regenerate forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, userProfile?.id, userProfile?.visibility]);
+  }, [isLoaded, pathname, userProfile?.id, userProfile?.visibility]);
 
   /**
    * Live match state: a request arriving, someone accepting, someone unmatching.
@@ -385,6 +439,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
 
     const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let joinedOnce = false;
 
     // Accepting a request updates the match and inserts a conversation, which can
     // arrive as separate events — coalesce so that's one refetch, not several.
@@ -440,14 +495,18 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       channel.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        refetch
+        payload => patchConversationFromMessage(payload.new as DbMessage)
       );
 
       // Realtime never replays what was missed while disconnected, so resync on every
       // (re)connect. A backgrounded tab can have its socket dropped and silently lose
       // every update until the next reload.
       channel.subscribe(status => {
-        if (status === 'SUBSCRIBED') refetch();
+        // The mount fetch already has the current state, so the first SUBSCRIBED has
+        // nothing to catch up on. Only a genuine reconnect can have missed events.
+        if (status !== 'SUBSCRIBED') return;
+        if (joinedOnce) refetch();
+        joinedOnce = true;
       });
     })();
 
@@ -464,7 +523,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', onVisible);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [userProfile?.id, applyState]);
+  }, [userProfile?.id, applyState, patchConversationFromMessage]);
 
   // Local demo mode persists everything; Supabase mode is server-authoritative.
   useEffect(() => {

@@ -226,6 +226,20 @@ export default function ChatRoomPage() {
     };
   }, [isSupabaseMode, conversationId, fetchPage]);
 
+  /**
+   * Held in a ref so effects can call the current version without listing it as a
+   * dependency. `notifyRead` is keyed on the viewer's profile id, which flips from
+   * null to a real id when /api/profile lands — as a dependency that tore the
+   * realtime effect down and rebuilt it mid-load, rejoining the channel and
+   * refetching the whole first page a second time.
+   */
+  const markReadRef = useRef(markConversationRead);
+  const notifyReadRef = useRef(notifyRead);
+  useEffect(() => {
+    markReadRef.current = markConversationRead;
+    notifyReadRef.current = notifyRead;
+  });
+
   // Live delivery of the other person's messages.
   useEffect(() => {
     if (!isSupabaseMode || !conversationId) return;
@@ -233,6 +247,7 @@ export default function ChatRoomPage() {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let joinedOnce = false;
 
     // Realtime does not replay what was missed, so pull the newest page on every
     // (re)connect and on refocus. mergeMessages dedupes, so re-reading is harmless
@@ -276,15 +291,20 @@ export default function ChatRoomPage() {
           }
         )
         .subscribe(status => {
-          if (status === 'SUBSCRIBED') resync();
+          // The page already fetched the newest page on mount, so the first
+          // SUBSCRIBED has nothing to catch up on. Only a genuine *re*connect can
+          // have missed anything.
+          if (status !== 'SUBSCRIBED') return;
+          if (joinedOnce) resync();
+          joinedOnce = true;
         });
     })();
 
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       resync();
-      markConversationRead(conversationId);
-      notifyRead(new Date().toISOString());
+      markReadRef.current(conversationId);
+      notifyReadRef.current(new Date().toISOString());
     };
     document.addEventListener('visibilitychange', onVisible);
 
@@ -293,7 +313,7 @@ export default function ChatRoomPage() {
       document.removeEventListener('visibilitychange', onVisible);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [isSupabaseMode, conversationId, mergeMessages, fetchPage, markConversationRead, notifyRead, setPeerReadAt]);
+  }, [isSupabaseMode, conversationId, mergeMessages, fetchPage, setPeerReadAt]);
 
   const messages = conversation?.messages ?? [];
 
@@ -316,13 +336,24 @@ export default function ChatRoomPage() {
     return () => setActiveConversationId(null);
   }, [conversationId, setActiveConversationId]);
 
+  /**
+   * Marking read is idempotent, so this only needs to fire when the unread state
+   * could actually have changed — opening the thread, or a message arriving from
+   * them. Keying it on `messages.length` fired it again for every message this
+   * viewer sent, which is what turned one POST /read into three.
+   */
+  const peerMessageCount = messages.reduce(
+    (total, m) => (m.senderProfileId && m.senderProfileId !== userProfile?.id ? total + 1 : total),
+    0
+  );
+
   useEffect(() => {
     if (!conversationId || typeof document === 'undefined') return;
     if (document.visibilityState !== 'visible') return;
-    markConversationRead(conversationId);
+    markReadRef.current(conversationId);
     // Same moment, broadcast: their receipt updates without waiting for a refetch.
-    notifyRead(new Date().toISOString());
-  }, [conversationId, messages.length, markConversationRead, notifyRead]);
+    notifyReadRef.current(new Date().toISOString());
+  }, [conversationId, peerMessageCount]);
 
   useEffect(() => {
     const mq = window.matchMedia('(pointer: coarse)');
@@ -443,7 +474,10 @@ export default function ChatRoomPage() {
     });
   };
 
-  if (!isLoaded || loadingRemote) {
+  // Deliberately not gated on `isLoaded`. Everything this screen renders comes
+  // from its own /messages response; waiting on /api/matches added seconds to the
+  // open for data that is then discarded.
+  if (loadingRemote) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
