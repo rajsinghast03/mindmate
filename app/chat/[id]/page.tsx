@@ -615,7 +615,13 @@ export default function ChatRoomPage() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-4rem)] max-w-4xl flex-col overflow-hidden border-x border-paper-300 bg-paper-50 shadow-soft">
       {/* Top Conversation Header */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-paper-300 bg-paper-100/90 px-2 py-2.5 backdrop-blur-md sm:px-6 sm:py-3.5">
+      {/* `relative z-30` is load-bearing, not decoration. `backdrop-blur-md` makes this
+          header a stacking context, which trapped the overflow menu's `z-50` inside it
+          — and as a non-positioned flex child the header painted *before* the
+          `position: relative` message list below, so the menu opened behind the
+          messages. Giving the header its own stacking level lifts the whole thing,
+          menu included, above the thread. Stays under the z-50 modals. */}
+      <div className="relative z-30 flex shrink-0 items-center justify-between gap-2 border-b border-paper-300 bg-paper-100/90 px-2 py-2.5 backdrop-blur-md sm:px-6 sm:py-3.5">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Link
             href="/connections"
