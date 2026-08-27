@@ -18,6 +18,11 @@ import {
   clearOnboardingDraft,
 } from '@/lib/onboarding-draft';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  DISPLAY_NAME_MIN_LENGTH,
+  validateDisplayName,
+} from '@/lib/validation/display-name';
 
 export default function ProfileReviewPage() {
   const router = useRouter();
@@ -89,8 +94,9 @@ export default function ProfileReviewPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim()) {
-      setError('Please enter a display name or nickname.');
+    const nameValidation = validateDisplayName(displayName);
+    if (!nameValidation.valid) {
+      setError(nameValidation.errors[0]);
       return;
     }
 
@@ -114,7 +120,7 @@ export default function ProfileReviewPage() {
     if (isSupabaseMode && !authUser) {
       saveOnboardingDraft({
         curiosityProfile: profileValidation.normalizedText,
-        displayName: displayName.trim(),
+        displayName: nameValidation.normalizedText,
         age: numericAge,
         cityOrTimezone: location.label,
         ianaTimezone: location.ianaTimezone,
@@ -131,7 +137,7 @@ export default function ProfileReviewPage() {
 
     try {
       await saveProfile(
-        displayName.trim(),
+        nameValidation.normalizedText,
         numericAge,
         location.label,
         profileValidation.normalizedText,
@@ -201,6 +207,8 @@ export default function ProfileReviewPage() {
                 id="display-name"
                 type="text"
                 required
+                minLength={DISPLAY_NAME_MIN_LENGTH}
+                maxLength={DISPLAY_NAME_MAX_LENGTH}
                 value={displayName}
                 onChange={e => {
                   setDisplayName(e.target.value);
@@ -210,7 +218,8 @@ export default function ProfileReviewPage() {
                 className="w-full rounded-xl border border-paper-300 bg-paper-100/60 px-4 py-3 text-base text-ink-950 focus:border-accent-500 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-all"
               />
               <p className="mt-1 text-xs text-ink-500">
-                Only your first name or nickname is shown.
+                Only your first name or nickname is shown. At least{' '}
+                {DISPLAY_NAME_MIN_LENGTH} characters.
               </p>
             </div>
 

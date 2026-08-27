@@ -18,34 +18,50 @@ const BASE_DELAY_MS = 600;
  */
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/**
+ * Callers that chain providers need a tighter budget than the defaults. The
+ * synthesizer gives Gemini two short attempts and keeps the remaining wall clock for
+ * the next provider, rather than letting one spend the whole request on retries — see
+ * synthesizeMatchResonance().
+ */
+export type RetryOptions = {
+  timeoutMs?: number;
+  maxAttempts?: number;
+};
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function fetchWithRetry(
   url: string,
   init: RequestInit,
   label: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  options: RetryOptions = {}
 ): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, maxAttempts = MAX_ATTEMPTS } = options;
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
 
-      if (res.ok || !RETRYABLE_STATUS.has(res.status) || attempt === MAX_ATTEMPTS) {
+      if (res.ok || !RETRYABLE_STATUS.has(res.status) || attempt === maxAttempts) {
         return res;
       }
 
-      console.warn(`${label}: HTTP ${res.status}, retrying (${attempt}/${MAX_ATTEMPTS - 1})…`);
+      console.warn(`${label}: HTTP ${res.status}, retrying (${attempt}/${maxAttempts - 1})…`);
     } catch (error) {
       lastError = error;
-      if (attempt === MAX_ATTEMPTS) throw error;
+      if (attempt === maxAttempts) throw error;
       const reason = (error as Error)?.name === 'TimeoutError' ? `timed out after ${timeoutMs}ms` : 'network error';
-      console.warn(`${label}: ${reason}, retrying (${attempt}/${MAX_ATTEMPTS - 1})…`);
+      console.warn(`${label}: ${reason}, retrying (${attempt}/${maxAttempts - 1})…`);
     }
 
-    await sleep(BASE_DELAY_MS * 2 ** (attempt - 1));
+    // No backoff after the last attempt — a caller with a provider chain to fall
+    // through to should not pay for a sleep it will never use.
+    if (attempt < maxAttempts) {
+      await sleep(BASE_DELAY_MS * 2 ** (attempt - 1));
+    }
   }
 
-  throw lastError ?? new Error(`${label} failed after ${MAX_ATTEMPTS} attempts`);
+  throw lastError ?? new Error(`${label} failed after ${maxAttempts} attempts`);
 }

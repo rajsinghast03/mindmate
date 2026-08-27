@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { DISPLAY_NAME_MAX_LENGTH } from '@/lib/validation/display-name';
 
 /** How long a pre-auth draft stays claimable. */
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -37,7 +38,12 @@ function pickDraftFields(draft: Record<string, unknown>, curiosityProfile: strin
 
   return {
     curiosityProfile,
-    displayName: text(draft.displayName),
+    // Capped to the profile column rather than FIELD_MAX: at 200 a draft could be
+    // stored in a state the real save would then reject against VARCHAR(60).
+    displayName:
+      typeof draft.displayName === 'string' && draft.displayName.trim()
+        ? draft.displayName.trim().slice(0, DISPLAY_NAME_MAX_LENGTH)
+        : undefined,
     // Bounded to the same range the profile API and the age CHECK enforce, so a
     // draft can never carry a value the real save would reject.
     age: Number.isFinite(age) && age >= 18 && age <= 120 ? Math.floor(age) : undefined,

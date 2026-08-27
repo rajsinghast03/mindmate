@@ -157,9 +157,21 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     transitions rejected with 409.
   - Incoming requests surface on `/connections` with resonance and shared question only — the raw
     profile stays hidden until mutual acceptance.
+  - They live in their own **Requests tab** rather than stacked above the conversation list. As
+    full match cards they ran 400–600px each and pushed every real chat below the fold. The tab
+    uses a compact row; the card remains the deciding surface on Discover. No navbar badge — the
+    bell already owns incoming-request counts, and counting them twice would report one event
+    twice.
 - [x] **4.2 Real-time Messaging (Supabase Realtime)**
-  - `postgres_changes` subscription filtered by `conversation_id`; messages merged by id so the
-    POST response and the realtime event can't duplicate.
+  - `postgres_changes` subscription filtered by `conversation_id`; messages merged by `clientId`
+    so the POST response and the realtime event can't duplicate.
+
+    This originally merged **by id**, which did not hold. The filter is on the conversation, not
+    the sender, so you receive an INSERT for your own row — and its server uuid never equals the
+    optimistic bubble's `pending-…` id, so the echo landed *beside* the grey bubble and both
+    rendered until the POST resolved. Migration 015 adds `messages.client_id` with a partial
+    unique index on `(conversation_id, client_id)`; the sender generates it, so the same message
+    is recognisable across all three transports and the settled row replaces the bubble in place.
   - Match status is streamed too (migration 006): requests, acceptances and unmatches land
     without a refresh, across Discover, Connections and the navbar badges.
   - Shared first question pinned as the conversation header.
@@ -173,6 +185,12 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
         the authoritative value comes back on every load and resync.
   - [x] Optimistic send with a
         pending state and a retry affordance is in; per-message read receipts are not.
+  - [x] **Duplicate sends closed at both ends.** The in-flight guard read `sending` from the render
+        closure while `setSending(true)` had not committed, so two events dispatched in the same
+        tick both posted; it is a ref latch now. And the server had no idempotency, so two POSTs
+        were two rows — it now inserts `client_id` and, on unique violation, returns the row it
+        already has. That also makes retry safe: a send whose response was lost but whose insert
+        landed settles instead of sending a second copy.
 - [x] **4.4 Inbox & thread UX** (migration 007)
   - `/connections` is a compact list: ~68px rows, `You:` / `<Name>:` attribution on the preview,
     a relative timestamp, and an unread badge. A name filter and a "show all" reveal appear once
@@ -189,7 +207,12 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     composer, Enter-to-send only on fine pointers, and a "new message" pill instead of yanking
     the reader to the bottom mid-scroll.
   - Mobile: `100dvh` sizing, footer suppressed on `/chat/*`, safe-area padding under the composer,
-    condensed header, and a collapsible pinned question.
+    and a condensed header.
+  - The opener is pinned **only while the thread is empty**. It used to stay pinned and truncated
+    forever, costing a row of the message list on every screen; once anyone has spoken it moves
+    into the approved-profile drawer, where it is still reachable but not in the way.
+  - Emoji picker in the composer — a curated set in a popover, inserted at the caret. Hand-rolled
+    rather than a dependency, in keeping with the rest of the UI.
 - [x] **4.3 Conversation Management**
   - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
   - [x] Block & report dialogs with reason capture (migration 010). Categorised reports with

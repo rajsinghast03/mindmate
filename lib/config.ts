@@ -74,7 +74,13 @@ export function getGeminiChatModel(): string {
   return realValue(process.env.GEMINI_CHAT_MODEL) ?? 'gemini-3.5-flash-lite';
 }
 
-/** True when either AI provider is usable — matching needs one of them. */
+/**
+ * True when an *embedding* provider is usable — matching needs one of them.
+ *
+ * A synthesis-only provider does not count: it cannot produce the 1536-dimension
+ * vector candidate retrieval depends on, so a deploy with synthesis but no embedding
+ * provider still cannot match anyone.
+ */
 export function isAiConfigured(): boolean {
   return Boolean(getGeminiKey() || getOpenAiKey());
 }

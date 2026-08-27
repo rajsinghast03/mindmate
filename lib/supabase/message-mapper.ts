@@ -6,6 +6,8 @@ export type DbMessage = {
   sender_profile_id: string;
   body: string;
   created_at: string;
+  /** Null on every row written before migration 015. */
+  client_id?: string | null;
 };
 
 /** Shared by the API routes and the client's Realtime subscription payloads. */
@@ -16,6 +18,7 @@ export function dbMessageToMessage(row: DbMessage): Message {
     senderProfileId: row.sender_profile_id,
     body: row.body,
     createdAt: row.created_at,
+    clientId: row.client_id ?? undefined,
   };
 }
 

@@ -21,6 +21,11 @@ import { Conversation } from '@/types';
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
+const CLIENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Postgres unique_violation, raised by messages_conversation_client_id_key. */
+const UNIQUE_VIOLATION = '23505';
+
 type ConversationContext = {
   matchId: string;
   createdAt: string;
@@ -198,9 +203,16 @@ export async function POST(
   const { id: conversationId } = await params;
 
   let text: string;
+  let clientId: string | null = null;
   try {
     const parsed = await req.json();
     text = typeof parsed?.body === 'string' ? parsed.body.trim() : '';
+    // Validated rather than trusted: it reaches a unique index, and anything that
+    // is not a UUID would be rejected by the column type as a raw 500.
+    clientId =
+      typeof parsed?.clientId === 'string' && CLIENT_ID_PATTERN.test(parsed.clientId)
+        ? parsed.clientId
+        : null;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   }
@@ -234,9 +246,27 @@ export async function POST(
       conversation_id: conversationId,
       sender_profile_id: viewer.profileId,
       body: text,
+      client_id: clientId,
     })
     .select('*')
     .single();
+
+  // A repeat of a send we already stored — a double-tap, or a retry after the
+  // first response was lost. Return the original row instead of erroring, so the
+  // caller settles its optimistic bubble against the message that really exists
+  // rather than being told the send failed and offering to send it again.
+  if (error?.code === UNIQUE_VIOLATION && clientId) {
+    const { data: existing } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .eq('client_id', clientId)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ message: dbMessageToMessage(existing as DbMessage), reply: null });
+    }
+  }
 
   if (error || !inserted) {
     return NextResponse.json(

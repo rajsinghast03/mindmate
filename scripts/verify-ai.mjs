@@ -1,9 +1,9 @@
 /**
  * Check the AI provider end to end before seeding anything.
  *
- * Verifies the two things that actually break silently: that embeddings come back at
- * exactly the dimension the `profiles.profile_embedding` column expects, and that the
- * chat model ID is still valid and honours the JSON response schema. Model IDs drift —
+ * Verifies the things that actually break silently: that embeddings come back at
+ * exactly the dimension the `profiles.profile_embedding` column expects, that the chat
+ * model ID is still valid and honours the JSON response schema. Model IDs drift —
  * Google retires Flash models regularly — so a clear failure here beats a confusing
  * 503 from /api/match later.
  *
@@ -56,6 +56,38 @@ try {
 const PROMPT = `Return a JSON object about why two people interested in craft and software
 might connect. Keys: "resonance_summary" (one sentence addressed to the reader as "You both"),
 "shared_curiosity" (a 2-4 word theme, under 60 characters), "first_question" (one open question).`;
+
+/** Mirrors toResonance() in lib/matching/synthesizer.ts — including the caps that gate the card layout. */
+const FIELD_CAPS = { shared_curiosity: 60, resonance_summary: 400, first_question: 300 };
+
+function validateResonance(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    console.error('   ✗ Response was not valid JSON.');
+    return false;
+  }
+
+  const missing = Object.keys(FIELD_CAPS).filter(
+    k => typeof parsed[k] !== 'string' || !parsed[k].trim()
+  );
+  if (missing.length) {
+    console.error(`   ✗ Response missing keys: ${missing.join(', ')}`);
+    return false;
+  }
+
+  const tooLong = Object.entries(FIELD_CAPS).filter(([k, cap]) => parsed[k].trim().length > cap);
+  if (tooLong.length) {
+    for (const [k, cap] of tooLong) {
+      console.error(`   ✗ ${k} is ${parsed[k].trim().length} chars, over the ${cap} cap — the card would discard this.`);
+    }
+    return false;
+  }
+
+  console.log(`   Sample shared_curiosity: "${parsed.shared_curiosity}"`);
+  return true;
+}
 
 let chatOk = false;
 try {
@@ -120,16 +152,7 @@ try {
     console.log(`\n✅ Chat model "gpt-4o-mini" responded in ${Date.now() - started}ms`);
   }
 
-  const parsed = JSON.parse(text);
-  const keys = ['resonance_summary', 'shared_curiosity', 'first_question'];
-  const missing = keys.filter(k => typeof parsed[k] !== 'string' || !parsed[k].trim());
-
-  if (missing.length) {
-    console.error(`   ✗ Response missing keys: ${missing.join(', ')}`);
-  } else {
-    console.log(`   Sample shared_curiosity: "${parsed.shared_curiosity}"`);
-    chatOk = true;
-  }
+  chatOk = validateResonance(text);
 } catch (err) {
   console.error(`\n❌ Chat model failed: ${err.message}`);
 }

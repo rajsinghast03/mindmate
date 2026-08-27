@@ -1,61 +1,39 @@
 import { Profile } from '@/types';
+import { SynthesizedResonance, generateLocalResonance } from '@/lib/matching/local-resonance';
 import { getGeminiChatModel, getGeminiKey, getOpenAiKey } from '@/lib/config';
-import { fetchWithRetry } from '@/lib/matching/http-retry';
+import { RetryOptions, fetchWithRetry } from '@/lib/matching/http-retry';
 
-export type SynthesizedResonance = {
-  explanation: string;
-  sharedCuriosity: string;
-  sharedQuestion: string;
-};
-
-// Fallback generator for realistic, high-quality editorial resonance
-export function generateLocalResonance(userProfile: Profile, candidate: Profile): SynthesizedResonance {
-  const profileTextA = userProfile.curiosityProfile.toLowerCase();
-  const profileTextB = candidate.curiosityProfile.toLowerCase();
-
-  // Determine shared domain or theme
-  let sharedCuriosity = 'Deliberate Craft & Deep Conversations';
-  let explanation = `You both return to making things thoughtfully, escaping superficial small talk, and noticing the quiet details in everyday life.`;
-  let sharedQuestion = `What would you try exploring this year if you knew nobody would judge you for being a complete beginner?`;
-
-  if (profileTextA.includes('sound') || profileTextB.includes('sound') || profileTextB.includes('music') || profileTextA.includes('listening')) {
-    sharedCuriosity = 'Acoustic Observation & Sonic Memory';
-    explanation = `You both find grounding in deep listening and the way sensory environments shape memory and mood.`;
-    sharedQuestion = `What is a specific ambient sound or song that immediately anchors you to a place you miss?`;
-  } else if (profileTextA.includes('city') || profileTextB.includes('city') || profileTextA.includes('walk') || profileTextB.includes('urban')) {
-    sharedCuriosity = 'Urban Topography & Micro-Histories';
-    explanation = `You both appreciate slow wanderings through neighborhoods and dissecting how physical spaces influence human connection.`;
-    sharedQuestion = `What is your favorite kind of 'third place' that feels like an antidote to digital fatigue?`;
-  } else if (profileTextA.includes('nature') || profileTextB.includes('fungal') || profileTextB.includes('climate') || profileTextA.includes('plants')) {
-    sharedCuriosity = 'Ecological Systems & Grounded Living';
-    explanation = `You share a passion for hands-on ecological curiosity and finding constructive optimism through natural systems.`;
-    sharedQuestion = `What is a small, physical practice you do that helps you stay patient with slow processes?`;
-  } else if (profileTextA.includes('game') || profileTextB.includes('game') || profileTextA.includes('system') || profileTextB.includes('play')) {
-    sharedCuriosity = 'Complex Systems & Playful Design';
-    explanation = `You both enjoy taking complex mental models apart and finding playfulness in structured constraints.`;
-    sharedQuestion = `What is a simple rule or game mechanic from your favorite pastimes that you wish applied to daily life?`;
-  } else if (profileTextA.includes('photo') || profileTextB.includes('photo') || profileTextA.includes('film') || profileTextB.includes('memory')) {
-    sharedCuriosity = 'Material Archives & Impermanence';
-    explanation = `You both value tangible artifacts over ephemeral digital feeds and care about preserving unhurried memories.`;
-    sharedQuestion = `If you could curate a physical exhibition of only three personal objects, what would one of them be?`;
-  } else if (profileTextA.includes('language') || profileTextB.includes('language') || profileTextA.includes('words') || profileTextB.includes('poetry')) {
-    sharedCuriosity = 'Nuance in Language & Subtle Emotions';
-    explanation = `You both ponder the boundaries of words and value emotional precision in everyday dialogue.`;
-    sharedQuestion = `Is there a feeling or experience you’ve had recently that felt completely untranslatable into standard words?`;
-  } else if (profileTextA.includes('space') || profileTextB.includes('star') || profileTextA.includes('astronomy') || profileTextB.includes('universe')) {
-    sharedCuriosity = 'Cosmic Scale & Childlike Curiosity';
-    explanation = `You both stay tuned to the quiet awe of the night sky and the joy of tinkering with things from first principles.`;
-    sharedQuestion = `When was the last time a piece of new knowledge made you stop in your tracks from pure wonder?`;
-  }
-
-  return {
-    explanation,
-    sharedCuriosity,
-    sharedQuestion,
-  };
-}
+export type { SynthesizedResonance };
 
 const OPENAI_CHAT_MODEL = 'gpt-4o-mini';
+
+/**
+ * Wall-clock ceiling for one card's synthesis, across every provider tried.
+ *
+ * Sized against `export const maxDuration` in app/api/match/route.ts. Without a
+ * deadline the chain is theoretical: a single provider on three 15s retries already
+ * outlives the platform's function timeout, so the fallback would never get to run.
+ */
+const TOTAL_BUDGET_MS = 45_000;
+
+/** Below this there is not enough time left for a provider to be worth starting. */
+const MIN_VIABLE_MS = 2_000;
+
+type Budget = Required<RetryOptions>;
+
+/**
+ * Each provider gets a slice of TOTAL_BUDGET_MS rather than the whole thing: two
+ * short Gemini attempts (~16.6s worst case with backoff) have to leave the next
+ * provider in the chain enough time to be worth starting.
+ */
+function budgetFor(remainingMs: number, attemptMs: number, maxAttempts: number): Budget {
+  return {
+    timeoutMs: Math.min(attemptMs, remainingMs),
+    // Not enough budget for the full set? Take one attempt and leave the rest of the
+    // chain something to work with.
+    maxAttempts: remainingMs >= attemptMs * maxAttempts ? maxAttempts : 1,
+  };
+}
 
 type RawResonance = {
   resonance_summary?: unknown;
@@ -63,6 +41,14 @@ type RawResonance = {
   first_question?: unknown;
 };
 
+/**
+ * The prompt of record, used verbatim by every provider.
+ *
+ * Deliberately one user turn with no separate system instruction, even though Claude
+ * would take one: a fallback card is persisted alongside primary-provider cards and
+ * read by the same people, so the two must be shaped by identical instructions. One
+ * prompt in one place is how that stays true.
+ */
 function buildPrompt(userProfile: Profile, candidate: Profile): string {
   return `You are the thoughtful match synthesizer for Mindmate, an intellectual connection platform.
 Analyze these two approved Curiosity Profiles:
@@ -97,8 +83,8 @@ const MAX_QUESTION = 300;
 
 /**
  * Reject partial or malformed responses so a broken card never reaches the database.
- * Returning null makes the caller skip the candidate and retry it next round, which is
- * the right trade when the alternative is a permanent bad row.
+ * Returning null makes the caller try the next provider, and — if none succeed — skip
+ * the candidate, which is the right trade when the alternative is a permanent bad row.
  */
 function toResonance(parsed: RawResonance): SynthesizedResonance | null {
   const { resonance_summary, shared_curiosity, first_question } = parsed;
@@ -132,9 +118,35 @@ function toResonance(parsed: RawResonance): SynthesizedResonance | null {
   return { explanation, sharedCuriosity, sharedQuestion };
 }
 
+/** A malformed body must not throw past the provider that produced it — the next one may succeed. */
+function parseResonance(raw: string, label: string): SynthesizedResonance | null {
+  try {
+    return toResonance(JSON.parse(raw));
+  } catch {
+    console.warn(`${label}: response was not valid JSON; discarding.`);
+    return null;
+  }
+}
+
+/**
+ * Log what the provider actually said. With a chain of providers a bare status code
+ * is not diagnosable — a 400 from a retired model ID and a 400 from a rejected
+ * parameter look identical until you read the body.
+ */
+async function warnRequestFailed(res: Response, label: string): Promise<void> {
+  let detail = '';
+  try {
+    detail = (await res.text()).slice(0, 300);
+  } catch {
+    // Body already consumed or unreadable; the status is still worth logging.
+  }
+  console.warn(`${label} request failed (HTTP ${res.status})${detail ? `: ${detail}` : ''}`);
+}
+
 async function synthesizeWithGemini(
   apiKey: string,
-  prompt: string
+  prompt: string,
+  budget: Budget
 ): Promise<SynthesizedResonance | null> {
   const model = getGeminiChatModel();
 
@@ -164,11 +176,12 @@ async function synthesizeWithGemini(
         },
       }),
     },
-    'Gemini resonance'
+    'Gemini resonance',
+    budget
   );
 
   if (!res.ok) {
-    console.warn(`Gemini resonance request failed (HTTP ${res.status}).`);
+    await warnRequestFailed(res, 'Gemini resonance');
     return null;
   }
 
@@ -176,12 +189,13 @@ async function synthesizeWithGemini(
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== 'string') return null;
 
-  return toResonance(JSON.parse(text));
+  return parseResonance(text, 'Gemini resonance');
 }
 
 async function synthesizeWithOpenAi(
   apiKey: string,
-  prompt: string
+  prompt: string,
+  budget: Budget
 ): Promise<SynthesizedResonance | null> {
   const res = await fetchWithRetry(
     'https://api.openai.com/v1/chat/completions',
@@ -198,11 +212,12 @@ async function synthesizeWithOpenAi(
         temperature: 0.7,
       }),
     },
-    'OpenAI resonance'
+    'OpenAI resonance',
+    budget
   );
 
   if (!res.ok) {
-    console.warn(`OpenAI resonance request failed (HTTP ${res.status}).`);
+    await warnRequestFailed(res, 'OpenAI resonance');
     return null;
   }
 
@@ -210,15 +225,52 @@ async function synthesizeWithOpenAi(
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== 'string') return null;
 
-  return toResonance(JSON.parse(content));
+  return parseResonance(content, 'OpenAI resonance');
+}
+
+type SynthProvider = {
+  name: string;
+  attemptMs: number;
+  maxAttempts: number;
+  run: (prompt: string, budget: Budget) => Promise<SynthesizedResonance | null>;
+};
+
+/**
+ * Gemini first because it is free, so steady-state cost stays at zero; OpenAI is the
+ * paid fallback and never primary.
+ */
+function configuredProviders(): SynthProvider[] {
+  const providers: SynthProvider[] = [];
+
+  const geminiKey = getGeminiKey();
+  if (geminiKey) {
+    providers.push({
+      name: 'Gemini',
+      attemptMs: 8_000,
+      maxAttempts: 2,
+      run: (prompt, budget) => synthesizeWithGemini(geminiKey, prompt, budget),
+    });
+  }
+
+  const openAiKey = getOpenAiKey();
+  if (openAiKey) {
+    providers.push({
+      name: 'OpenAI',
+      attemptMs: 12_000,
+      maxAttempts: 2,
+      run: (prompt, budget) => synthesizeWithOpenAi(openAiKey, prompt, budget),
+    });
+  }
+
+  return providers;
 }
 
 /**
- * Gemini first (free tier), OpenAI if that's the only key present.
+ * Try each configured provider in turn until one returns a usable card.
  *
- * Returns null when a provider IS configured but the call ultimately failed. That
- * matters: resonance text is written once and never regenerated, so persisting the
- * offline template after a transient 503 would permanently saddle a real pair with a
+ * Returns null when providers ARE configured but all of them failed. That matters:
+ * resonance text is written once and never regenerated, so persisting the offline
+ * template after a transient outage would permanently saddle a real pair with a
  * generic explanation. The caller skips those candidates instead — they come back
  * around on the next /api/match call.
  *
@@ -229,21 +281,40 @@ export async function synthesizeMatchResonance(
   userProfile: Profile,
   candidate: Profile
 ): Promise<SynthesizedResonance | null> {
-  const geminiKey = getGeminiKey();
-  const openAiKey = getOpenAiKey();
-
-  if (!geminiKey && !openAiKey) {
+  const providers = configuredProviders();
+  if (!providers.length) {
     return generateLocalResonance(userProfile, candidate);
   }
 
   const prompt = buildPrompt(userProfile, candidate);
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
 
-  try {
-    return geminiKey
-      ? await synthesizeWithGemini(geminiKey, prompt)
-      : await synthesizeWithOpenAi(openAiKey as string, prompt);
-  } catch (error) {
-    console.error('Error generating resonance:', error);
-    return null;
+  for (const provider of providers) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_VIABLE_MS) {
+      console.warn(`Resonance budget spent before ${provider.name} could be tried.`);
+      break;
+    }
+
+    try {
+      const resonance = await provider.run(
+        prompt,
+        budgetFor(remaining, provider.attemptMs, provider.maxAttempts)
+      );
+
+      if (resonance) {
+        // The only way to tell in production whether the fallback ever fires.
+        console.info(`Resonance synthesised by ${provider.name}.`);
+        return resonance;
+      }
+
+      console.warn(`${provider.name} returned no usable resonance; trying the next provider.`);
+    } catch (error) {
+      // Caught per provider, not around the whole chain: one provider throwing must
+      // not cost the card a try at the next one.
+      console.error(`${provider.name} resonance threw:`, error);
+    }
   }
+
+  return null;
 }

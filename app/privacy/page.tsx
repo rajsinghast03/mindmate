@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     'What Mindmate collects, what it never collects, who else processes your data, and how to delete it.',
 };
 
-const UPDATED = '26 August 2026';
+const UPDATED = '27 August 2026';
 const CONTACT = 'rajsinghast03@gmail.com';
 
 export default function PrivacyPage() {
@@ -113,9 +113,16 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong>It is used to write the explanation of why two people match.</strong> To do that,
-          your text and the other person&rsquo;s text are sent together, in one request, to the same
-          API. The result is the short summary, shared curiosity, and opening question you see on a
-          suggestion card.
+          your text and the other person&rsquo;s text are sent together, in one request, to
+          Google&rsquo;s Gemini API. The result is the short summary, shared curiosity, and opening
+          question you see on a suggestion card.
+        </p>
+        <p>
+          If Gemini is unavailable when that happens, the same request — the same two blocks of
+          prose, nothing more — goes instead to Anthropic&rsquo;s Claude, running on Amazon Web
+          Services. It is a standby, not a second copy: exactly one of the two receives your text,
+          and only one of them is asked. Turning your text into a vector, the first step above,
+          never uses this standby.
         </p>
         <Callout>
           <p>
@@ -145,9 +152,11 @@ export default function PrivacyPage() {
         </p>
         <p>
           While you have a conversation open, the other person in that conversation can see that
-          you are currently in it, and whether you are typing. This is limited to that one thread
-          and stops the moment you leave it. There is no global &ldquo;online&rdquo; indicator and
-          no &ldquo;last seen&rdquo; timestamp anywhere in the product.
+          you are currently in it &mdash; shown as <strong>&ldquo;Online&rdquo;</strong> in that
+          thread &mdash; and whether you are typing. That label means only that you have this one
+          conversation open. It is limited to that thread, it stops the moment you leave, and it is
+          not visible anywhere else: there is no account-wide online status, no presence on your
+          profile or in Discover, and no &ldquo;last seen&rdquo; timestamp anywhere in the product.
         </p>
       </Section>
 

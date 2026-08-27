@@ -85,8 +85,9 @@ export function NotificationBell() {
           matchId: match.id,
           kind: 'incoming',
           displayName: name,
-          // /connections renders these as MatchCards with Connect and Pass.
-          href: '/connections',
+          // Deep link into the Requests tab, which is not the one /connections
+          // opens on — landing on Chats would show no sign of the request.
+          href: '/connections?tab=requests',
           updatedAt: match.updatedAt,
         });
       }

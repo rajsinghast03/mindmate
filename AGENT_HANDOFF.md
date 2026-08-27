@@ -22,7 +22,7 @@
 | **Current Phase** | **Phase 3: AI Matching & pgvector (code complete, awaiting live activation)** |
 | **Active Milestone** | Activated. Browser-side consent + security verification outstanding |
 | **Build Health** | `next build` and `tsc --noEmit` both clean |
-| **Last Updated** | 2026-08-24 |
+| **Last Updated** | 2026-08-27 |
 
 > **✅ Live and activated.** Migration 005 is applied, `GEMINI_API_KEY` and `SUPABASE_SECRET_KEY`
 > are set, the 8 demo personas are seeded with embeddings, and pgvector retrieval was verified
@@ -164,6 +164,56 @@
       channel join and then silently reported nobody — indistinguishable from "they are offline".
       012 widens both policies to `IN ('broadcast', 'presence')`; verified a non-member still gets
       CHANNEL_ERROR afterwards.
+- [x] **Display name validation** (migration 015). `display_name` was the one field in 001 with
+      no CHECK — `''` and `'   '` satisfied NOT NULL and VARCHAR(60), and `PATCH /api/profile`
+      wrote whatever it was given with no check at all, so an empty name could be stored and then
+      rendered as `?` in the avatar and blank in the navbar. `lib/validation/display-name.ts`
+      mirrors the curiosity-profile validator and is wired into the same five call sites; the DB
+      constraint is `NOT VALID` so it cannot fail on pre-existing rows.
+
+      The one worth remembering: validating in `saveProfile()` rather than only in the review form
+      is what covers `/auth/complete`, which auto-saves a local draft — with a name that may have
+      come straight from Google — without ever rendering the form. Also, the draft endpoint capped
+      names at 200 while the column is 60, so a draft could be stored in a state the real save
+      would reject.
+
+- [x] **Duplicate messages** (migration 015). Two independent defects that looked like one bug.
+
+      The visible duplicate: `mergeMessages` deduped on `id`, but the realtime filter is on the
+      conversation, not the sender, so you receive an INSERT for your own row — and its uuid never
+      equals the optimistic `pending-…` id. Both bubbles rendered until the POST resolved, a window
+      the route widens by running `loadContext()` (three round-trips) plus an optional demo-reply
+      insert before responding. Fixed with `messages.client_id`: the sender generates it, the merge
+      matches on it, and the settled row replaces the bubble in place whichever transport wins.
+
+      The real double-send: the guard read `sending` from the render closure while `setSending(true)`
+      had not committed, so two events in one tick both posted, and nothing server-side collapsed
+      them. Now a ref latch plus a partial unique index on `(conversation_id, client_id)`, with the
+      route returning the existing row on `23505` instead of erroring — which is also what makes
+      retry safe when an insert landed but its response did not.
+
+- [x] **Requests moved out of the conversation list.** They stacked above the chats as full
+      `MatchCard`s at 400–600px each, so two requests pushed every real conversation off the first
+      screen. Own tab now, compact row, default tab is Chats. Deliberately **no navbar badge** —
+      see the comment in `navbar.tsx`: the bell owns incoming-request counts so one event is not
+      reported twice. Also fixes an empty state that was gated on `pending.length === 0`, so
+      someone with requests and no conversations saw nothing at all.
+
+- [x] **Presence label is now "Online"** (was "In this conversation"), and `app/privacy/page.tsx`
+      was reworded to match. The mechanism is unchanged and still scoped to the open thread; the
+      policy now names the label and says explicitly that it means only that one conversation is
+      open. Nothing new is collected, so the date bump is the whole obligation under the policy's
+      own "Changes" section.
+
+- [x] **Emoji picker** in the composer (`components/emoji-picker.tsx`), curated rather than a
+      dependency. Two traps: the chat shell is `overflow-hidden`, so the panel has to open upward
+      or it is clipped; and the textarea's `onBlur` fires `notifyStopped`, so every control in the
+      picker needs `onMouseDown={e => e.preventDefault()}` or clicking an emoji kills the typing
+      indicator and moves the caret to the end.
+
+- [x] **Opener unpinned once the thread has content.** It was pinned and truncated forever, costing
+      a row of the message list on every screen. It moves into the approved-profile drawer.
+
 - [ ] Account deletion also removes reports filed *about* that person
       (`reports.reported_profile_id` cascades), so someone can clear their moderation history by
       deleting and re-registering. Deletion beating retention is the defensible default for this
@@ -207,6 +257,8 @@
 - [x] **Logo simplification** — coral spark dot removed from `LogoMark` SVG everywhere; serif-M-only inside ink circle. Wordmark optically aligned via `translate-y-[0.06em]`.
 
 > **Note:** Apply migrations in order. Instances that already ran `001` still need `002`–`005`.
+> `015` is required for the current chat code: without `messages.client_id` every send fails
+> outright, since the insert names a column that does not exist.
 > `005_phase3_matching.sql` is required for Phase 3 to function at all — it adds `is_demo`,
 > rebuilds the retrieval RPC, closes the two RLS holes, and adds `messages` to the realtime
 > publication.

@@ -4,6 +4,7 @@ import { SERVICE_ROLE_MISSING, createServiceClient } from '@/lib/supabase/servic
 import { dbProfileToProfile, profileToDbInsert } from '@/lib/supabase/profile-mapper';
 import { isAdminEmail, isServiceRoleConfigured, isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { validateDisplayName } from '@/lib/validation/display-name';
 import { generateEmbedding } from '@/lib/matching/embeddings';
 
 async function requestBody(req: NextRequest): Promise<Record<string, unknown> | null> {
@@ -91,6 +92,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Must be 18 or older' }, { status: 400 });
   }
 
+  const nameValidation = validateDisplayName(displayName);
+  if (!nameValidation.valid) {
+    return NextResponse.json({ error: nameValidation.errors[0], code: 'INVALID_DISPLAY_NAME' }, { status: 422 });
+  }
+
   const profileValidation = validateCuriosityProfile(curiosityProfile);
   if (!profileValidation.valid) {
     return NextResponse.json({ error: profileValidation.errors[0], code: 'INVALID_CURIOSITY_PROFILE' }, { status: 422 });
@@ -108,7 +114,7 @@ export async function POST(req: NextRequest) {
     !existing || existing.curiosity_profile !== profileValidation.normalizedText;
 
   const row = profileToDbInsert(user.id, {
-    displayName: String(displayName).trim(),
+    displayName: nameValidation.normalizedText,
     age: Number(age),
     cityOrTimezone: String(cityOrTimezone).trim(),
     ianaTimezone: body.ianaTimezone ? String(body.ianaTimezone) : null,
@@ -166,7 +172,13 @@ export async function PATCH(req: NextRequest) {
   let newEmbedding: number[] | null = null;
   let embeddingChanged = false;
 
-  if (body.displayName !== undefined) updates.display_name = String(body.displayName).trim();
+  if (body.displayName !== undefined) {
+    const nameValidation = validateDisplayName(body.displayName);
+    if (!nameValidation.valid) {
+      return NextResponse.json({ error: nameValidation.errors[0], code: 'INVALID_DISPLAY_NAME' }, { status: 422 });
+    }
+    updates.display_name = nameValidation.normalizedText;
+  }
   if (body.age !== undefined) updates.age = Number(body.age);
   if (body.cityOrTimezone !== undefined) updates.city_or_timezone = String(body.cityOrTimezone).trim();
   if (body.ianaTimezone !== undefined) updates.iana_timezone = body.ianaTimezone ? String(body.ianaTimezone) : null;

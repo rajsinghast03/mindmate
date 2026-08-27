@@ -9,6 +9,7 @@ import { DbMessage, dbMessageToMessage } from '@/lib/supabase/message-mapper';
 import { useConversationChannel } from '@/lib/realtime/conversation-channel';
 import { Avatar } from '@/components/avatar';
 import { TypingIndicator } from '@/components/typing-indicator';
+import { EmojiPicker } from '@/components/emoji-picker';
 import { ReportDialog } from '@/components/report-dialog';
 import { formatDateSeparator, formatMessageTime, isSameDay } from '@/lib/format/time';
 import { Conversation, Message } from '@/types';
@@ -21,7 +22,6 @@ import {
   HelpCircle,
   Sparkles,
   Info,
-  ChevronDown,
   ArrowDown,
   Loader2,
   RotateCcw,
@@ -60,11 +60,12 @@ export default function ChatRoomPage() {
   const [remoteConversation, setRemoteConversation] = useState<Conversation | null>(null);
   const [loadingRemote, setLoadingRemote] = useState(isSupabaseMode);
   const [sending, setSending] = useState(false);
+  /** Synchronous in-flight latch. `sending` drives the UI; this one guards the send. */
+  const sendingRef = useRef(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [unseenBelow, setUnseenBelow] = useState(false);
-  const [questionOverride, setQuestionOverride] = useState<boolean | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [coarsePointer, setCoarsePointer] = useState(false);
@@ -106,41 +107,55 @@ export default function ChatRoomPage() {
       isSupabaseMode && !conversationEnded
     );
 
-  /** Merge by id — Realtime, the POST response and a resync can all carry the same row. */
+  /**
+   * Fold rows in from any of the three transports that can carry them: the POST
+   * response, the Realtime echo, and a resync or page load.
+   *
+   * Matching on `id` alone is not enough. The sender receives a Realtime INSERT
+   * for their own row, and its server-assigned uuid never equals the optimistic
+   * bubble's `pending-…` id — so the echo used to land *beside* the grey bubble
+   * and both rendered until the POST finally resolved. `clientId` is the same on
+   * both, so the settled row replaces the bubble in place instead, whichever
+   * transport happens to arrive first.
+   */
   const mergeMessages = useCallback((incoming: Message[]) => {
     setRemoteConversation(prev => {
       if (!prev) return prev;
-      const seen = new Set(prev.messages.map(m => m.id));
-      const fresh = incoming.filter(m => m && !seen.has(m.id));
-      if (!fresh.length) return prev;
 
-      const messages = [...prev.messages, ...fresh].sort(
-        (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
-      );
+      let changed = false;
+      const next = [...prev.messages];
+
+      for (const message of incoming) {
+        if (!message) continue;
+
+        // The settled row for a bubble we are already showing.
+        const optimistic = message.clientId
+          ? next.findIndex(m => m.clientId === message.clientId && (m.pending || m.failed))
+          : -1;
+
+        if (optimistic !== -1) {
+          next[optimistic] = message;
+          changed = true;
+          continue;
+        }
+
+        const known =
+          next.some(m => m.id === message.id) ||
+          (!!message.clientId && next.some(m => m.clientId === message.clientId));
+        if (known) continue;
+
+        next.push(message);
+        changed = true;
+      }
+
+      if (!changed) return prev;
+
+      const messages = next.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
       return {
         ...prev,
         messages,
         messageCount: Math.max(prev.messageCount, messages.length),
         lastActivityAt: messages[messages.length - 1].createdAt,
-      };
-    });
-  }, []);
-
-  /** Swap the optimistic bubble for the rows the server actually stored. */
-  const settleOptimistic = useCallback((tempId: string, settled: Message[]) => {
-    setRemoteConversation(prev => {
-      if (!prev) return prev;
-      const seen = new Set(prev.messages.filter(m => m.id !== tempId).map(m => m.id));
-      const messages = [
-        ...prev.messages.filter(m => m.id !== tempId),
-        ...settled.filter(m => m && !seen.has(m.id)),
-      ].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-
-      return {
-        ...prev,
-        messages,
-        messageCount: messages.length,
-        lastActivityAt: messages.at(-1)?.createdAt ?? prev.lastActivityAt,
       };
     });
   }, []);
@@ -400,6 +415,30 @@ export default function ChatRoomPage() {
 
   useEffect(resizeComposer, [inputMessage, resizeComposer]);
 
+  /**
+   * Insert at the caret rather than appending, and put the caret back after it.
+   * React reassigns `value` on re-render, which parks the caret at the end of the
+   * text — so someone adding an emoji mid-sentence would find the rest of their
+   * message behind them.
+   */
+  const insertEmoji = (emoji: string) => {
+    const el = composerRef.current;
+    const start = el?.selectionStart ?? inputMessage.length;
+    const end = el?.selectionEnd ?? inputMessage.length;
+    const next = inputMessage.slice(0, start) + emoji + inputMessage.slice(end);
+
+    setInputMessage(next);
+    notifyTyping();
+
+    const caret = start + emoji.length;
+    requestAnimationFrame(() => {
+      const node = composerRef.current;
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(caret, caret);
+    });
+  };
+
   if (!isLoaded || loadingRemote) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -438,33 +477,24 @@ export default function ChatRoomPage() {
    */
   const seenPeerMessage = (msg: Message) =>
     !!peerReadAt && Date.parse(peerReadAt) >= Date.parse(msg.createdAt);
-  // The opener is the point of an empty thread, so it stays expanded until there
-  // is something to read; after that it collapses out of the way on small screens.
-  const questionOpen = questionOverride ?? messages.length === 0;
 
-  const submit = async () => {
-    const text = inputMessage.trim();
-    if (!text || sending) return;
-
-    notifyStopped();
-
-    if (!isSupabaseMode) {
-      sendMessage(conversationId, text);
-      setInputMessage('');
-      return;
-    }
-
-    const tempId = `pending-${crypto.randomUUID()}`;
+  /**
+   * Send one message body under one `clientId`, reused on retry so the server can
+   * recognise the repeat. Returns nothing; the bubble settles through
+   * mergeMessages when the row comes back, whichever transport wins.
+   */
+  const deliver = async (text: string, clientId: string) => {
+    const tempId = `pending-${clientId}`;
     const optimistic: Message = {
       id: tempId,
       conversationId,
       senderProfileId: userProfile?.id ?? '',
       body: text,
       createdAt: new Date().toISOString(),
+      clientId,
       pending: true,
     };
 
-    setInputMessage('');
     setSendError(null);
     setSending(true);
     stickToBottom.current = true;
@@ -474,7 +504,7 @@ export default function ChatRoomPage() {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: text }),
+        body: JSON.stringify({ body: text, clientId }),
       });
 
       if (!res.ok) {
@@ -485,13 +515,38 @@ export default function ChatRoomPage() {
       }
 
       const { message, reply } = await res.json();
-      settleOptimistic(tempId, [message, reply].filter(Boolean) as Message[]);
+      mergeMessages([message, reply].filter(Boolean) as Message[]);
     } catch {
+      // The insert may still have landed — a lost response looks identical here.
+      // The Realtime echo replaces this bubble if it did, and retrying reuses the
+      // same clientId if it did not, so neither outcome duplicates.
       setSendError('Could not send that message.');
       markFailed(tempId);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
+  };
+
+  const submit = async () => {
+    const text = inputMessage.trim();
+    // Latched on a ref, not on `sending`: that state is read from the render
+    // closure, so two events dispatched before React commits both saw `false`
+    // and both posted. The state below still drives the disabled treatment.
+    if (!text || sendingRef.current) return;
+    sendingRef.current = true;
+
+    notifyStopped();
+
+    if (!isSupabaseMode) {
+      sendMessage(conversationId, text);
+      setInputMessage('');
+      sendingRef.current = false;
+      return;
+    }
+
+    setInputMessage('');
+    await deliver(text, crypto.randomUUID());
   };
 
   const handleSend = (e: React.FormEvent) => {
@@ -509,12 +564,39 @@ export default function ChatRoomPage() {
     }
   };
 
+  /**
+   * Resend under the message's original `clientId`. If the first attempt actually
+   * reached the database and only its response was lost, the unique index catches
+   * the repeat and the server returns the row it already has — so retrying a
+   * message that silently succeeded settles the bubble instead of sending twice.
+   */
   const retryFailed = (msg: Message) => {
+    if (sendingRef.current) return;
+    const clientId = msg.clientId;
+
+    // Pre-clientId bubbles have nothing to deduplicate against; put the text back
+    // in the composer and let the person decide, as this always used to do.
+    if (!clientId) {
+      setRemoteConversation(prev =>
+        prev ? { ...prev, messages: prev.messages.filter(m => m.id !== msg.id) } : prev
+      );
+      setInputMessage(msg.body);
+      composerRef.current?.focus();
+      return;
+    }
+
+    sendingRef.current = true;
     setRemoteConversation(prev =>
-      prev ? { ...prev, messages: prev.messages.filter(m => m.id !== msg.id) } : prev
+      prev
+        ? {
+            ...prev,
+            messages: prev.messages.map(m =>
+              m.id === msg.id ? { ...m, failed: false, pending: true } : m
+            ),
+          }
+        : prev
     );
-    setInputMessage(msg.body);
-    composerRef.current?.focus();
+    void deliver(msg.body, clientId);
   };
 
   const handleUnmatch = async () => {
@@ -554,15 +636,18 @@ export default function ChatRoomPage() {
                 {candidateProfile.age}
               </span>
             </div>
-            {/* Only ever shown when they are here. There is no "offline" state and
-                no last-seen: absence should read as nothing, not as a report. */}
+            {/* Only ever shown when they are here, and scoped to this thread — the
+                channel is per-conversation, so "Online" means they have this
+                conversation open, not that they are using the app. There is no
+                "offline" state and no last-seen: absence should read as nothing,
+                not as a report. */}
             {peerOnline ? (
               <p className="flex items-center gap-1.5 text-[11px] text-sage-700">
                 <span
                   aria-hidden="true"
                   className="h-1.5 w-1.5 shrink-0 rounded-full bg-sage-500"
                 />
-                <span>In this conversation</span>
+                <span>Online</span>
               </p>
             ) : (
               <p className="truncate text-[11px] text-ink-500">
@@ -650,41 +735,47 @@ export default function ChatRoomPage() {
               ? `“${candidateProfile.curiosityProfile}”`
               : 'Their approved profile becomes visible once you are connected.'}
           </p>
+
+          {/* The opener lives here once the thread has content, since it stops
+              being pinned above. It is still what the conversation was built on,
+              so it stays somewhere you can go back to — just not in the way. */}
+          <div className="mt-3 rounded-xl border border-dashed border-paper-300 bg-paper-50 p-4">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-accent-700">
+              <HelpCircle className="h-3.5 w-3.5 shrink-0 text-accent-500" />
+              <span>Shared Opening Question</span>
+            </span>
+            <p className="mt-1 font-serif text-[15px] font-medium leading-snug text-ink-950">
+              &ldquo;{sharedQuestion}&rdquo;
+            </p>
+            <p className="mt-1.5 font-sans text-xs text-ink-500">
+              Resonance context: {resonanceSummary}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Pinned Shared Opener Question — collapses once the thread has content */}
-      <div className="shrink-0 border-b border-dashed border-paper-300 bg-paper-100/50 px-4 py-2.5 sm:px-6">
-        <button
-          onClick={() => setQuestionOverride(!questionOpen)}
-          aria-expanded={questionOpen}
-          className="flex w-full items-start gap-2 text-left"
-        >
-          <HelpCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-500" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-medium text-accent-700">
-              Shared Opening Question
-            </span>
-            <span
-              className={`block font-serif text-[15px] font-medium leading-snug text-ink-950 sm:text-lg ${
-                questionOpen ? '' : 'truncate'
-              }`}
-            >
-              &ldquo;{sharedQuestion}&rdquo;
-            </span>
-            {questionOpen && (
+      {/* The opener is the whole point of an empty thread, and clutter once there
+          is a conversation to read — it used to stay pinned and truncated, which
+          cost a row of the message list on every screen forever. Once anyone has
+          spoken it moves into the profile drawer above. */}
+      {messages.length === 0 && (
+        <div className="shrink-0 border-b border-dashed border-paper-300 bg-paper-100/50 px-4 py-2.5 sm:px-6">
+          <div className="flex w-full items-start gap-2 text-left">
+            <HelpCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-500" />
+            <div className="min-w-0 flex-1">
+              <span className="block text-[11px] font-medium text-accent-700">
+                Shared Opening Question
+              </span>
+              <span className="block font-serif text-[15px] font-medium leading-snug text-ink-950 sm:text-lg">
+                &ldquo;{sharedQuestion}&rdquo;
+              </span>
               <span className="mt-1 block font-sans text-xs text-ink-500">
                 Resonance context: {resonanceSummary}
               </span>
-            )}
-          </span>
-          <ChevronDown
-            className={`mt-0.5 h-4 w-4 shrink-0 text-ink-400 transition-transform ${
-              questionOpen ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-      </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages Thread */}
       <div className="relative min-h-0 flex-1">
@@ -828,7 +919,9 @@ export default function ChatRoomPage() {
 
           {sendError && <p className="mb-2 text-xs font-medium text-accent-700">{sendError}</p>}
 
-          <form onSubmit={handleSend} className="flex items-end gap-2">
+          <form onSubmit={handleSend} className="flex items-end gap-1.5">
+            <EmojiPicker onSelect={insertEmoji} disabled={sending} />
+
             <textarea
               ref={composerRef}
               rows={1}

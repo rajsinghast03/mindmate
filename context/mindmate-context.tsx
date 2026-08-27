@@ -4,11 +4,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Profile, Match, Conversation, Message } from '@/types';
 import { SEED_PROFILES } from '@/data/seed-profiles';
 import { reRankCandidates } from '@/lib/matching/reranker';
-import { generateLocalResonance } from '@/lib/matching/synthesizer';
+import { generateLocalResonance } from '@/lib/matching/local-resonance';
 import { DEMO_REPLIES } from '@/lib/matching/demo-replies';
 import { createClient, uniqueChannelName } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config';
 import { validateCuriosityProfile } from '@/lib/validation/curiosity-profile';
+import { validateDisplayName } from '@/lib/validation/display-name';
 import { clearOnboardingDraft } from '@/lib/onboarding-draft';
 
 /**
@@ -480,6 +481,14 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     curiosityProfile: string,
     ianaTimezone?: string | null
   ) => {
+    // Validated here rather than only in the form: /auth/complete auto-saves a
+    // local draft without ever rendering the review screen, and a name that came
+    // from Google is not otherwise checked by anything on the client.
+    const nameValidation = validateDisplayName(displayName);
+    if (!nameValidation.valid) {
+      throw new Error(nameValidation.errors[0]);
+    }
+
     const profileValidation = validateCuriosityProfile(curiosityProfile);
     if (!profileValidation.valid) {
       throw new Error(profileValidation.errors[0]);
@@ -490,7 +499,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          displayName,
+          displayName: nameValidation.normalizedText,
           age,
           cityOrTimezone,
           curiosityProfile: profileValidation.normalizedText,
@@ -512,7 +521,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     const profile: Profile = {
       id: userProfile?.id || `user-profile-${Date.now()}`,
       userId: userProfile?.userId || `user-${Date.now()}`,
-      displayName,
+      displayName: nameValidation.normalizedText,
       age,
       cityOrTimezone,
       ianaTimezone: ianaTimezone ?? null,

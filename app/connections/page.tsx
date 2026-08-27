@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMindmate } from '@/context/mindmate-context';
-import { MatchCard } from '@/components/match-card';
+import { RequestRow } from '@/components/request-row';
 import { Avatar } from '@/components/avatar';
 import { formatListTimestamp } from '@/lib/format/time';
 import { MessageSquare, Compass, ArrowRight, Sparkles, Inbox, Search } from 'lucide-react';
@@ -12,13 +13,40 @@ import { MessageSquare, Compass, ArrowRight, Sparkles, Inbox, Search } from 'luc
 const INITIAL_ROWS = 15;
 const FILTER_THRESHOLD = 6;
 
+type Tab = 'chats' | 'requests';
+
+/** The page's own loading state, reused as the Suspense fallback below. */
+function Spinner() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
+    </div>
+  );
+}
+
+/**
+ * Wrapped because `useSearchParams` opts the tree into client-side rendering, and
+ * Next refuses to prerender the route without a boundary to fall back to.
+ */
 export default function ConnectionsPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <ConnectionsList />
+    </Suspense>
+  );
+}
+
+function ConnectionsList() {
   const { conversations, matches, userProfile, connectMatch, passMatch, isLoaded } = useMindmate();
+  const searchParams = useSearchParams();
 
   const [pendingAction, setPendingAction] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [showAll, setShowAll] = useState(false);
+  // Seeded from the URL so the notification bell can land someone on the request
+  // they were told about, then owned locally — switching tabs is not navigation.
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'requests' ? 'requests' : 'chats');
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase();
@@ -28,13 +56,7 @@ export default function ConnectionsPage() {
     );
   }, [conversations, filter]);
 
-  if (!isLoaded) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-500 border-t-transparent" />
-      </div>
-    );
-  }
+  if (!isLoaded) return <Spinner />;
 
   // Incoming first — those are the ones waiting on a decision from this user.
   const pending = matches
@@ -78,37 +100,80 @@ export default function ConnectionsPage() {
         </div>
       )}
 
-      {/* Pending requests — a conversation opens only when both sides say yes */}
-      {pending.length > 0 && (
-        <section className="mb-10">
-          <div className="mb-4 flex items-center gap-2">
-            <Inbox className="h-4 w-4 text-accent-500" />
-            <h2 className="font-serif text-xl font-medium text-ink-950">
-              Pending {pending.length === 1 ? 'request' : 'requests'}
-            </h2>
-            {incomingCount > 0 && (
-              <span className="rounded-full bg-accent-700 px-2 py-0.5 text-[10px] font-bold text-white">
-                {incomingCount} awaiting you
-              </span>
-            )}
-          </div>
+      {/* Requests used to stack above the list as full match cards, which pushed
+          every real conversation off the first screen. They keep their own tab
+          now; chats are what this page opens on. */}
+      <div role="tablist" aria-label="Conversations and requests" className="mb-5 flex items-center gap-2">
+        <button
+          role="tab"
+          id="tab-chats"
+          aria-selected={tab === 'chats'}
+          aria-controls="panel-chats"
+          onClick={() => setTab('chats')}
+          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            tab === 'chats'
+              ? 'bg-ink-950 text-paper-50'
+              : 'text-ink-600 hover:bg-paper-200/70 hover:text-ink-950'
+          }`}
+        >
+          Chats
+        </button>
 
-          <div className="space-y-6">
-            {pending.map(match => (
-              <MatchCard
-                key={match.id}
-                match={match}
-                onConnect={id => runAction(() => connectMatch(id))}
-                onPass={id => runAction(() => passMatch(id))}
-                disabled={pendingAction}
-              />
-            ))}
-          </div>
+        <button
+          role="tab"
+          id="tab-requests"
+          aria-selected={tab === 'requests'}
+          aria-controls="panel-requests"
+          onClick={() => setTab('requests')}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            tab === 'requests'
+              ? 'bg-ink-950 text-paper-50'
+              : 'text-ink-600 hover:bg-paper-200/70 hover:text-ink-950'
+          }`}
+        >
+          <span>Requests</span>
+          {pending.length > 0 && (
+            <span
+              className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                incomingCount > 0 ? 'bg-accent-700 text-white' : 'bg-paper-300 text-ink-700'
+              }`}
+            >
+              {pending.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {tab === 'requests' ? (
+        <section role="tabpanel" id="panel-requests" aria-labelledby="tab-requests">
+          {pending.length > 0 ? (
+            <ul className="divide-y divide-paper-300 overflow-hidden rounded-2xl border border-paper-300 bg-paper-50 shadow-soft">
+              {pending.map(match => (
+                <RequestRow
+                  key={match.id}
+                  match={match}
+                  onConnect={id => runAction(() => connectMatch(id))}
+                  onPass={id => runAction(() => passMatch(id))}
+                  disabled={pendingAction}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="mx-auto max-w-lg rounded-3xl border border-paper-300 bg-paper-50 p-8 text-center shadow-soft sm:p-12">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-paper-200 text-ink-600">
+                <Inbox className="h-6 w-6" />
+              </div>
+              <h3 className="mb-2 font-serif text-2xl font-medium text-ink-950">
+                No pending requests
+              </h3>
+              <p className="text-sm leading-relaxed text-ink-600">
+                When someone asks to connect, or you ask them, it waits here until you both agree.
+              </p>
+            </div>
+          )}
         </section>
-      )}
-
-      {conversations.length > 0 ? (
-        <section>
+      ) : conversations.length > 0 ? (
+        <section role="tabpanel" id="panel-chats" aria-labelledby="tab-chats">
           {conversations.length > FILTER_THRESHOLD && (
             <div className="relative mb-3">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
@@ -206,29 +271,52 @@ export default function ConnectionsPage() {
           )}
         </section>
       ) : (
-        pending.length === 0 && (
-          <div className="mx-auto max-w-lg rounded-3xl border border-paper-300 bg-paper-50 p-8 text-center shadow-soft sm:p-12">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-paper-200 text-ink-600">
-              <Sparkles className="h-6 w-6" />
-            </div>
-            <h3 className="mb-2 font-serif text-2xl font-medium text-ink-950">
-              No active conversations yet
-            </h3>
-            <p className="mb-6 text-sm leading-relaxed text-ink-600">
-              When you discover someone who shares your curiosities and you both choose to connect,
-              your private conversation will open here.
-            </p>
-
-            <Link
-              href="/discover"
-              className="inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-3 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-ink-800"
-            >
-              <Compass className="h-4 w-4" />
-              <span>Discover Curated Minds</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+        <section
+          role="tabpanel"
+          id="panel-chats"
+          aria-labelledby="tab-chats"
+          className="mx-auto max-w-lg rounded-3xl border border-paper-300 bg-paper-50 p-8 text-center shadow-soft sm:p-12"
+        >
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-paper-200 text-ink-600">
+            <Sparkles className="h-6 w-6" />
           </div>
-        )
+          <h3 className="mb-2 font-serif text-2xl font-medium text-ink-950">
+            No active conversations yet
+          </h3>
+          <p className="mb-6 text-sm leading-relaxed text-ink-600">
+            {pending.length > 0
+              ? 'A conversation opens as soon as a pending request is accepted on both sides.'
+              : 'When you discover someone who shares your curiosities and you both choose to connect, your private conversation will open here.'}
+          </p>
+
+          <Link
+            href={pending.length > 0 ? '#' : '/discover'}
+            onClick={
+              pending.length > 0
+                ? e => {
+                    e.preventDefault();
+                    setTab('requests');
+                  }
+                : undefined
+            }
+            className="inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-3 text-sm font-medium text-paper-50 shadow-soft transition-all hover:bg-ink-800"
+          >
+            {pending.length > 0 ? (
+              <>
+                <Inbox className="h-4 w-4" />
+                <span>
+                  See {pending.length} pending {pending.length === 1 ? 'request' : 'requests'}
+                </span>
+              </>
+            ) : (
+              <>
+                <Compass className="h-4 w-4" />
+                <span>Discover Curated Minds</span>
+              </>
+            )}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </section>
       )}
     </div>
   );

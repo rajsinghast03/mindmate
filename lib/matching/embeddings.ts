@@ -6,8 +6,11 @@
  * profiles.profile_embedding without a schema change. OpenAI remains supported as a
  * paid alternative and is used only when no Gemini key is configured.
  *
- * Raw fetch rather than either vendor SDK, matching lib/matching/synthesizer.ts —
- * the project deliberately carries no AI provider dependency.
+ * Raw fetch rather than either vendor SDK: no AI provider dependency is needed to
+ * speak these two REST APIs. Embeddings are deliberately single-provider per
+ * deployment: vectors from different models live in different vector spaces, so
+ * failing over mid-flight would write a vector that cosine distance silently
+ * mis-ranks against every other row.
  */
 
 import {

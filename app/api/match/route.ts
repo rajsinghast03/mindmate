@@ -12,6 +12,15 @@ import {
 import { canonicalPair } from '@/lib/supabase/match-mapper';
 import { Profile } from '@/types';
 
+/**
+ * Resonance synthesis can walk a provider chain (Gemini, then OpenAI) before it gives
+ * up, and lib/matching/synthesizer.ts budgets up to TOTAL_BUDGET_MS for that walk.
+ * Without headroom here the platform kills the function mid-chain and the fallback
+ * never gets to serve a card. This also closes a pre-existing exposure: a single
+ * hanging Gemini call already outlived the default function timeout.
+ */
+export const maxDuration = 60;
+
 /** Curated introductions per user, per the anti-feed principle. */
 const SUGGESTION_TARGET = 3;
 
