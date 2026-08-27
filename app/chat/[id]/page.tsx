@@ -683,9 +683,9 @@ export default function ChatRoomPage() {
         {/* Action Controls */}
         <div ref={menuRef} className="relative flex shrink-0 items-center gap-2">
           {/* Shown on mobile too, icon-only. It used to be desktop-only with a
-              matching item in the overflow menu; that item is now Delete, and
-              without this the drawer — which also holds the opening question once
-              the thread has content — would be unreachable on a phone. */}
+              matching `sm:hidden` item in the overflow menu — a pair, not a
+              duplicate. That slot is Delete now, so without this the drawer would
+              be unreachable on a phone. */}
           <button
             onClick={() => setShowDossier(!showDossier)}
             aria-label="Approved profile"
@@ -764,22 +764,6 @@ export default function ChatRoomPage() {
               ? `“${candidateProfile.curiosityProfile}”`
               : 'Their approved profile becomes visible once you are connected.'}
           </p>
-
-          {/* The opener lives here once the thread has content, since it stops
-              being pinned above. It is still what the conversation was built on,
-              so it stays somewhere you can go back to — just not in the way. */}
-          <div className="mt-3 rounded-xl border border-dashed border-paper-300 bg-paper-50 p-4">
-            <span className="flex items-center gap-1.5 text-[11px] font-medium text-accent-700">
-              <HelpCircle className="h-3.5 w-3.5 shrink-0 text-accent-500" />
-              <span>Shared Opening Question</span>
-            </span>
-            <p className="mt-1 font-serif text-[15px] font-medium leading-snug text-ink-950">
-              &ldquo;{sharedQuestion}&rdquo;
-            </p>
-            <p className="mt-1.5 font-sans text-xs text-ink-500">
-              Resonance context: {resonanceSummary}
-            </p>
-          </div>
         </div>
       )}
 
@@ -1007,13 +991,8 @@ export default function ChatRoomPage() {
             <h3 className="mb-2 font-serif text-xl font-medium text-ink-950">
               Delete this conversation?
             </h3>
-            <p className="mb-4 text-xs leading-relaxed text-ink-600">
-              It is removed from your conversations only. {candidateProfile.displayName} keeps
-              their copy, and you stay connected. If they write again the conversation comes back,
-              showing only what they say after this.
-            </p>
-            <p className="mb-6 text-xs leading-relaxed text-ink-500">
-              To end the connection instead, use Unmatch.
+            <p className="mb-6 text-xs leading-relaxed text-ink-600">
+              Removed for you only.
             </p>
 
             {deleteError && (

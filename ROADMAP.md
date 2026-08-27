@@ -210,7 +210,9 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     and a condensed header.
   - The opener is pinned **only while the thread is empty**. It used to stay pinned and truncated
     forever, costing a row of the message list on every screen; once anyone has spoken it moves
-    into the approved-profile drawer, where it is still reachable but not in the way.
+    it is simply gone once anyone has spoken. It was briefly parked in the
+    approved-profile drawer, which was wrong — that drawer is the other person's profile,
+    and the opener is not part of it.
   - Emoji picker in the composer — a curated set in a popover, inserted at the caret. Hand-rolled
     rather than a dependency, in keeping with the rest of the UI.
 - [x] **4.3 Conversation Management**

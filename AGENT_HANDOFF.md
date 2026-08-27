@@ -212,7 +212,9 @@
       indicator and moves the caret to the end.
 
 - [x] **Opener unpinned once the thread has content.** It was pinned and truncated forever, costing
-      a row of the message list on every screen. It moves into the approved-profile drawer.
+      a row of the message list on every screen. It is simply gone once anyone has spoken.
+      It was briefly parked in the approved-profile drawer; that was wrong, since the drawer
+      is the other person's profile and the opener is not part of it.
 
 - [x] **Delete conversation** (migration 016). Per-viewer, not a real delete:
       `conversations.match_id` cascades to `messages`, so destroying the row would take
@@ -234,8 +236,7 @@
 - [x] **Approved profile is reachable on mobile.** It was a desktop-only header button
       plus an `sm:hidden` menu item — a matched pair, not a duplicate. The menu slot is
       now Delete, so the header button shows on mobile as icon-only. Without that the
-      drawer would have been unreachable on a phone, taking the shared opening question
-      with it, since the opener moved into that drawer when it was unpinned.
+      drawer would have been unreachable on a phone.
 
 - [x] **Chat overflow menu opened behind the messages.** The menu had `z-50` already,
       which is why it looks impossible. `backdrop-blur-md` on the header creates a
