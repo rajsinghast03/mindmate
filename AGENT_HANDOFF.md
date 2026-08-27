@@ -214,6 +214,36 @@
 - [x] **Opener unpinned once the thread has content.** It was pinned and truncated forever, costing
       a row of the message list on every screen. It moves into the approved-profile drawer.
 
+- [x] **Delete conversation** (migration 016). Per-viewer, not a real delete:
+      `conversations.match_id` cascades to `messages`, so destroying the row would take
+      the other person's copy of a thread they never agreed to lose. `conversation_hides`
+      mirrors `conversation_reads` in shape and policy, and `conversation_summaries` is
+      rewritten to window every message join to `> hidden_at` and drop a hidden
+      conversation that has nothing new.
+
+      A deleted thread **comes back** when they write again, carrying only what was said
+      after the delete. Staying hidden forever is a silent black hole — someone messages
+      you, you never find out, and to them you are simply ignoring them. The revival is
+      free: the provider already refetches `/api/matches` on any `messages` INSERT.
+
+      Absence from the RPC is the hidden test in `loadMatchState`, which works because the
+      RPC returns a row for every other conversation the viewer is party to, empty ones
+      included. The thread's own paging is bounded too, so scrolling up cannot walk back
+      past the mark.
+
+- [x] **Approved profile is reachable on mobile.** It was a desktop-only header button
+      plus an `sm:hidden` menu item — a matched pair, not a duplicate. The menu slot is
+      now Delete, so the header button shows on mobile as icon-only. Without that the
+      drawer would have been unreachable on a phone, taking the shared opening question
+      with it, since the opener moved into that drawer when it was unpinned.
+
+- [x] **Chat overflow menu opened behind the messages.** The menu had `z-50` already,
+      which is why it looks impossible. `backdrop-blur-md` on the header creates a
+      stacking context, confining that z-50 inside it; and the header is a non-positioned
+      flex child while the message list is `position: relative`, and positioned elements
+      paint after non-positioned ones. `relative z-30` on the header fixes both. Do not
+      remove either class without reading the comment there.
+
 - [ ] Account deletion also removes reports filed *about* that person
       (`reports.reported_profile_id` cascades), so someone can clear their moderation history by
       deleting and re-registering. Deletion beating retention is the defensible default for this
@@ -258,7 +288,8 @@
 
 > **Note:** Apply migrations in order. Instances that already ran `001` still need `002`–`005`.
 > `015` is required for the current chat code: without `messages.client_id` every send fails
-> outright, since the insert names a column that does not exist.
+> outright, since the insert names a column that does not exist. `016` is required for the
+> inbox: `conversation_summaries` reads `conversation_hides`, and Delete conversation writes it.
 > `005_phase3_matching.sql` is required for Phase 3 to function at all — it adds `is_demo`,
 > rebuilds the retrieval RPC, closes the two RLS holes, and adds `messages` to the realtime
 > publication.

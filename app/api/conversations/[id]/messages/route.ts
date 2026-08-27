@@ -80,6 +80,28 @@ async function loadContext(
   };
 }
 
+/**
+ * When this viewer last removed the thread from their inbox, or null if never.
+ *
+ * A conversation deleted and then revived by a new message shows only what was
+ * said after the delete — reviving the old messages would hand back exactly what
+ * the person asked to be rid of. Migration 016.
+ */
+async function loadHiddenAt(
+  userScoped: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  viewerProfileId: string
+): Promise<string | null> {
+  const { data } = await userScoped
+    .from('conversation_hides')
+    .select('hidden_at')
+    .eq('conversation_id', conversationId)
+    .eq('profile_id', viewerProfileId)
+    .maybeSingle();
+
+  return data?.hidden_at ?? null;
+}
+
 /** Page size for the thread. The client scrolls up to pull older pages. */
 const DEFAULT_PAGE_SIZE = 30;
 const MAX_PAGE_SIZE = 100;
@@ -126,6 +148,8 @@ export async function GET(
   // The cursor is `created_at` alone. timestamptz is microsecond-resolution, so
   // two messages in one conversation sharing an instant is not a real scenario;
   // a composite (created_at, id) keyset would cost the index scan for nothing.
+  const hiddenAt = await loadHiddenAt(supabase, conversationId, result.viewer.profileId);
+
   let query = supabase
     .from('messages')
     .select('*')
@@ -134,6 +158,9 @@ export async function GET(
     .limit(limit + 1);
 
   if (before) query = query.lt('created_at', before);
+  // Bounds the "load earlier" paging too, so scrolling up cannot walk back past
+  // the delete into messages this viewer removed.
+  if (hiddenAt) query = query.gt('created_at', hiddenAt);
 
   const { data: rows, error } = await query;
 

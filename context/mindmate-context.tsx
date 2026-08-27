@@ -51,6 +51,11 @@ interface MindmateContextType {
   passMatch: (matchId: string) => Promise<void>;
   sendMessage: (conversationId: string, text: string) => void;
   unmatchConversation: (conversationId: string) => Promise<void>;
+  /**
+   * Remove a thread from this viewer's inbox. The other person keeps theirs, and
+   * it returns if they write again — see migration 016.
+   */
+  deleteConversation: (conversationId: string) => Promise<void>;
   /** Clear the unread badge for a thread and persist the read mark. */
   markConversationRead: (conversationId: string) => void;
   /**
@@ -666,6 +671,25 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
     setConversations(prev => prev.filter(c => c.id !== conversationId));
   };
 
+  const deleteConversation = async (conversationId: string) => {
+    const convo = conversations.find(c => c.id === conversationId);
+    if (!convo) return;
+
+    if (SUPABASE_MODE) {
+      const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Could not remove this conversation.');
+      }
+      // Drop it locally rather than refetching: the match itself is untouched, so
+      // a refetch would return the same list minus this row anyway.
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      return;
+    }
+
+    setConversations(prev => prev.filter(c => c.id !== conversationId));
+  };
+
   const togglePauseDiscovery = async () => {
     if (!userProfile) return;
     const nextVis = userProfile.visibility === 'discoverable' ? 'paused' : 'discoverable';
@@ -753,6 +777,7 @@ export function MindmateProvider({ children }: { children: React.ReactNode }) {
         passMatch,
         sendMessage,
         unmatchConversation,
+        deleteConversation,
         markConversationRead,
         notificationsSeenAt,
         markNotificationsSeen,

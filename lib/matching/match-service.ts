@@ -263,7 +263,14 @@ export async function loadMatchState(
     loadNotificationsSeenAt(service, profileId),
   ]);
 
-  const connected = matches.filter((m) => m.status === 'connected' && m.conversationId);
+  // A conversation the viewer removed from their inbox is absent from the RPC
+  // result entirely, and comes back the moment there is a message newer than the
+  // hide mark (migration 016). Absence is therefore the hidden test — the RPC
+  // returns a row for every other conversation this viewer is party to, empty
+  // ones included.
+  const connected = matches.filter(
+    (m) => m.status === 'connected' && m.conversationId && summaries.has(m.conversationId)
+  );
 
   const conversations: Conversation[] = connected
     .map((match) => {

@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Send,
   MoreVertical,
+  Trash2,
   ShieldAlert,
   UserX,
   HelpCircle,
@@ -47,6 +48,7 @@ export default function ChatRoomPage() {
     userProfile,
     sendMessage,
     unmatchConversation,
+    deleteConversation,
     markConversationRead,
     setActiveConversationId,
     isLoaded,
@@ -57,6 +59,8 @@ export default function ChatRoomPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [showDossier, setShowDossier] = useState(false);
   const [showUnmatchModal, setShowUnmatchModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [remoteConversation, setRemoteConversation] = useState<Conversation | null>(null);
   const [loadingRemote, setLoadingRemote] = useState(isSupabaseMode);
   const [sending, setSending] = useState(false);
@@ -599,6 +603,19 @@ export default function ChatRoomPage() {
     void deliver(msg.body, clientId);
   };
 
+  const handleDelete = async () => {
+    setDeleteError(null);
+    try {
+      await deleteConversation(conversationId);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not remove this conversation.');
+      return;
+    }
+    setShowDeleteModal(false);
+    setLeaving(true);
+    router.push('/connections');
+  };
+
   const handleUnmatch = async () => {
     setLeaving(true);
     setShowUnmatchModal(false);
@@ -665,12 +682,18 @@ export default function ChatRoomPage() {
 
         {/* Action Controls */}
         <div ref={menuRef} className="relative flex shrink-0 items-center gap-2">
+          {/* Shown on mobile too, icon-only. It used to be desktop-only with a
+              matching item in the overflow menu; that item is now Delete, and
+              without this the drawer — which also holds the opening question once
+              the thread has content — would be unreachable on a phone. */}
           <button
             onClick={() => setShowDossier(!showDossier)}
-            className="hidden items-center gap-1 rounded-full border border-paper-300 bg-paper-50 px-3 py-1 text-xs font-medium text-ink-700 transition-colors hover:bg-paper-200 sm:flex"
+            aria-label="Approved profile"
+            aria-expanded={showDossier}
+            className="flex items-center gap-1 rounded-full border border-paper-300 bg-paper-50 p-2 text-xs font-medium text-ink-700 transition-colors hover:bg-paper-200 sm:px-3 sm:py-1"
           >
             <Info className="h-3.5 w-3.5 text-accent-500" />
-            <span>Approved Profile</span>
+            <span className="hidden sm:inline">Approved Profile</span>
           </button>
 
           <button
@@ -688,12 +711,12 @@ export default function ChatRoomPage() {
               <button
                 onClick={() => {
                   setShowMenu(false);
-                  setShowDossier(true);
+                  setShowDeleteModal(true);
                 }}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink-700 transition-colors hover:bg-paper-100 sm:hidden"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink-700 transition-colors hover:bg-paper-100"
               >
-                <Info className="h-4 w-4 text-accent-500" />
-                <span>Approved profile</span>
+                <Trash2 className="h-4 w-4 text-ink-500" />
+                <span>Delete conversation</span>
               </button>
 
               <button
@@ -974,6 +997,48 @@ export default function ChatRoomPage() {
             }
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal — worth a confirm step even though nothing is
+          destroyed, since the thread disappearing from the inbox looks permanent. */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl border border-paper-300 bg-paper-50 p-6 shadow-card">
+            <h3 className="mb-2 font-serif text-xl font-medium text-ink-950">
+              Delete this conversation?
+            </h3>
+            <p className="mb-4 text-xs leading-relaxed text-ink-600">
+              It is removed from your conversations only. {candidateProfile.displayName} keeps
+              their copy, and you stay connected. If they write again the conversation comes back,
+              showing only what they say after this.
+            </p>
+            <p className="mb-6 text-xs leading-relaxed text-ink-500">
+              To end the connection instead, use Unmatch.
+            </p>
+
+            {deleteError && (
+              <p className="mb-4 text-xs font-medium text-accent-700">{deleteError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteError(null);
+                }}
+                className="rounded-full px-4 py-2 text-xs font-medium text-ink-600 hover:bg-paper-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="rounded-full bg-accent-700 px-5 py-2 text-xs font-medium text-white hover:bg-accent-800"
+              >
+                Delete for me
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Unmatch Confirmation Modal */}

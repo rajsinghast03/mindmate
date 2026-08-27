@@ -215,6 +215,11 @@ is the same groundwork Phase 3 required, and leaving messages in `localStorage` 
     rather than a dependency, in keeping with the rest of the UI.
 - [x] **4.3 Conversation Management**
   - [x] Unmatch action (`connected → unmatched`; the messages policy then locks the thread).
+  - [x] Delete conversation (migration 016) — per-viewer, and deliberately *not* a delete.
+        The cascade from `matches` reaches `messages`, so a real delete would destroy the
+        other person's copy; `conversation_hides` records who cleared what instead. The
+        thread returns if they write again, carrying only the new messages. Unmatch remains
+        the way to actually end a connection.
   - [x] Block & report dialogs with reason capture (migration 010). Categorised reports with
         optional detail and conversation context; blocking closes the match and locks the thread.
         Unblock on `/profile`. The admin queue that handles them landed under 5.2.
