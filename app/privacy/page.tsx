@@ -119,10 +119,10 @@ export default function PrivacyPage() {
         </p>
         <p>
           If Gemini is unavailable when that happens, the same request — the same two blocks of
-          prose, nothing more — goes instead to Anthropic&rsquo;s Claude, running on Amazon Web
-          Services. It is a standby, not a second copy: exactly one of the two receives your text,
-          and only one of them is asked. Turning your text into a vector, the first step above,
-          never uses this standby.
+          prose, nothing more — may go instead to OpenAI, on the deployments where a key is
+          configured for it; where none is, the suggestion is simply not created. It is a standby,
+          not a second copy: exactly one provider receives your text, and only one is asked.
+          Turning your text into a vector, the first step above, never uses this standby.
         </p>
         <Callout>
           <p>
@@ -171,6 +171,11 @@ export default function PrivacyPage() {
             <>
               <strong>Google (Gemini API)</strong> — receives Curiosity Profile text as described
               above. Nothing else is sent.
+            </>,
+            <>
+              <strong>OpenAI</strong> — the standby for the same two steps, used only where a key is
+              configured and only on the occasions Google is unavailable. It receives the same
+              Curiosity Profile text and nothing else.
             </>,
             <>
               <strong>Resend</strong> — delivers the three account emails. It is configured as the
